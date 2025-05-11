@@ -7,12 +7,37 @@ use rppal::gpio::Gpio;
 use rppal::system::DeviceInfo;
 use rppal::pwm::{Channel, Polarity, Pwm};
 
+use clap::Parser;
+
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about=None)]
+struct CliArgs {
+    #[arg(short,long, default_value_t = 21)]
+    bcm_pin: u8,
+
+    #[arg(short,long, default_values_t = [60, 80])]
+    temp_step: Vec<u8>,
+
+    #[arg(short,long, default_values_t = [0, 100])]
+    speed_step: Vec<u8>,
+
+    #[arg(short,long, default_value_t = 2000)]
+    pwm_freq: u16,
+}
+
+
+
 const temp_file: &str = "/sys/class/thermal/thermal_zone0/temp";
 
 // Gpio uses BCM pin numbering. BCM GPIO 23 is tied to physical pin 16.
 const GPIO_LED: u8 = 23;
 
 fn main() -> Result<(), std::io::Error> {
+
+    // parse CLI args
+    let args = CliArgs::parse();
+
     //println!("Hello, world!");
 
     let device_info = DeviceInfo::new().unwrap();
