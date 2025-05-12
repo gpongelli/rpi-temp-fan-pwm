@@ -1,32 +1,45 @@
 use std::fs::File;
 //use std::io::{self, BufRead, BufReader};
-use std::path::Path;
+//use std::path::Path;
+use std::fmt::Debug;
 use std::io::{self, Read};
-
-use rppal::gpio::Gpio;
+//use rppal::gpio::Gpio;
 use rppal::system::DeviceInfo;
-use rppal::pwm::{Channel, Polarity, Pwm};
+use std::ops::RangeInclusive;
+
+//use rppal::pwm::{Channel, Polarity, Pwm};
 
 use clap::Parser;
-
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about=None)]
 struct CliArgs {
-    #[arg(short,long, default_value_t = 21)]
+    #[arg(short, long, default_value_t = 21)]
     bcm_pin: u8,
 
-    #[arg(short,long, default_values_t = [60, 80])]
+    //https://stackoverflow.com/questions/73240901/how-to-get-clap-to-process-a-single-argument-with-multiple-values-without-having
+    #[arg(short,long, value_delimiter=',', default_value = "60,80", num_args = 1.., value_parser = percentage_in_range)]
     temp_step: Vec<u8>,
 
-    #[arg(short,long, default_values_t = [0, 100])]
+    #[arg(short,long, value_delimiter=',', default_value = "0,100", num_args = 1.. )]
     speed_step: Vec<u8>,
 
-    #[arg(short,long, default_value_t = 2000)]
+    #[arg(short, long, default_value_t = 2000)]
     pwm_freq: u16,
 }
 
+const PORT_RANGE: RangeInclusive<usize> = 1..=100;
 
+fn percentage_in_range(s: &str) -> Result<u8, String> {
+    let port: usize = s
+        .parse()
+        .map_err(|_| format!("`{s}` isn't a percentage number"))?;
+    if PORT_RANGE.contains(&port) {
+        Ok(port as u8)
+    } else {
+        Err(format!("Value not in percentage range 0-100"))
+    }
+}
 
 const temp_file: &str = "/sys/class/thermal/thermal_zone0/temp";
 
@@ -34,10 +47,10 @@ const temp_file: &str = "/sys/class/thermal/thermal_zone0/temp";
 const GPIO_LED: u8 = 23;
 
 fn main() -> Result<(), std::io::Error> {
-
     // parse CLI args
     let args = CliArgs::parse();
 
+    //println!("ARGS: {:#?} - {:#?}", args.speed_step, args.temp_step);
     //println!("Hello, world!");
 
     let device_info = DeviceInfo::new().unwrap();
@@ -56,18 +69,16 @@ fn main() -> Result<(), std::io::Error> {
         Ok(contents) => {
             println!("File Contents:\n{}", contents.trim());
             set_pwm(contents.trim());
-
-        },
+        }
         Err(e) => {
-            return Err(e)
+            return Err(e);
             /*eprintln!("Error reading file: {}", e);
             Err(e); */
-        },
+        }
     }
 
     Ok(())
 }
-
 
 fn read_file_to_string(filename: &str) -> Result<String, io::Error> {
     let mut file = File::open(filename)?;
@@ -75,7 +86,6 @@ fn read_file_to_string(filename: &str) -> Result<String, io::Error> {
     file.read_to_string(&mut contents)?;
     Ok(contents)
 }
-
 
 fn set_pwm(temp: &str) {
 
@@ -85,9 +95,7 @@ fn set_pwm(temp: &str) {
 
     // Reconfigure the PWM channel for an 8 Hz frequency, 50% duty cycle.
     //pwm.set_frequency(8.0, 0.5)?;
-
 }
-
 
 // The output is wrapped in a Result to allow matching on errors.
 // Returns an Iterator to the Reader of the lines of the file.
