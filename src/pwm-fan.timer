@@ -1,0 +1,10 @@
+[Unit]
+Description=Configure PWM fan every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=pwm-fan.service
+
+[Install]
+WantedBy=timers.target
