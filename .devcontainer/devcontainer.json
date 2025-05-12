@@ -1,0 +1,137 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/rust
+/*  DEVCONTAINER from VS code..
+{
+    "name": "Rust",
+    // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+    "image": "mcr.microsoft.com/devcontainers/rust:1-1-bookworm",
+    "features": {
+        "ghcr.io/devcontainers/features/python:1": {
+            "installTools": true,
+            "version": "3.12"
+        },
+        "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
+        "ghcr.io/devcontainers-extra/features/nox:2": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers-extra/features/pipx-package:1": {
+            "package": "black",
+            "version": "latest",
+            "injections": "pylint pytest",
+            "interpreter": "python3"
+        },
+        "ghcr.io/devcontainers-extra/features/poetry:2": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers-extra/features/ruff:1": {
+            "version": "latest"
+        }
+    }
+
+    // Use 'mounts' to make the cargo cache persistent in a Docker Volume.
+    // "mounts": [
+    //     {
+    //         "source": "devcontainer-cargo-cache-${devcontainerId}",
+    //         "target": "/usr/local/cargo",
+    //         "type": "volume"
+    //     }
+    // ]
+
+    // Features to add to the dev container. More info: https://containers.dev/features.
+    // "features": {},
+
+    // Use 'forwardPorts' to make a list of ports inside the container available locally.
+    // "forwardPorts": [],
+
+    // Use 'postCreateCommand' to run commands after the container is created.
+    // "postCreateCommand": "rustc --version",
+
+    // Configure tool-specific properties.
+    // "customizations": {},
+
+    // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+    // "remoteUser": "root"
+}
+*/
+
+{
+    "name": "rust_rpi_fan",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "rust_rpi_fan",
+    "workspaceFolder": "/app",
+
+    // useless "postAttachCommand": "sudo chown -R rustdev:rustdev /app",
+    
+    //"containerUser": "rustdev",  // user used by volume mount
+
+    /*"postCreateCommand": {
+        "fixVolumePerms": "sudo chown -R $(whoami): /app"
+      }*/
+
+    // "initializeCommand": "cd .devcontainer && chmod +x pre-up.sh && ./pre-up.sh",
+
+    /*"features": {
+        /*"ghcr.io/devcontainers/features/git:1": {
+            "version": "latest"
+        },
+        / *"ghcr.io/devcontainers/features/python:1": {
+            "installTools": true,
+            "version": "3.12"
+        },* /
+        //https://github.com/jsburckhardt/devcontainer-features
+        "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
+        "ghcr.io/devcontainers-extra/features/nox:2": {
+            "version": "latest"
+        },
+        / *"ghcr.io/devcontainers-extra/features/pipx-package:1": {
+            "package": "black",
+            "version": "latest",
+            "injections": "pylint pytest",
+            "interpreter": "python3"
+        },* /
+        "ghcr.io/devcontainers-extra/features/poetry:2": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers-extra/features/ruff:1": {
+            "version": "latest"
+        }
+    }, */
+
+    "customizations": {  
+        "settings": {
+            "terminal.integrated.shell.linux": "/bin/bash"
+        },  
+        "vscode": {
+            "settings": {
+                "editor.wordWrap": "on"
+            },
+            "extensions": [
+                "ms-vscode.cpptools-themes",
+                "jeff-hykin.better-shellscript-syntax",
+                "ms-vscode-remote.remote-wsl",
+                "dunstontc.vscode-docker-syntax",
+                "ms-vscode-remote.remote-containers",
+                "ms-vscode.cpptools",
+                "ms-azuretools.vscode-docker",
+                "mhutchie.git-graph",
+                "twxs.cmake",
+                "ms-vscode.cmake-tools",
+                "ms-vscode.cpptools-extension-pack",
+                
+                // https://github.com/devcontainers/features/tree/main/src/python
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.autopep8",
+                "donjayamanne.python-extension-pack",
+                
+                // https://github.com/devcontainers/features/tree/main/src/rust
+                "vadimcn.vscode-lldb",
+                "rust-lang.rust-analyzer",
+                "tamasfe.even-better-toml",
+
+                "fill-labs.dependi"
+            ]
+        },
+        "extensions": []
+    }
+}

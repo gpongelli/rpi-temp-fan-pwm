@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  rust_rpi_fan:
+    container_name: rust_rpi_fan
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: [/bin/bash -c "while sleep 10000; do :; done"]
+#    environment:
+#      - ENV_VAR=example_value
+    volumes:
+      - ..:/app:cached
+    tty: true
+    stdin_open: true
+    # user: "1000"
