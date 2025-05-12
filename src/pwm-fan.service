@@ -1,0 +1,9 @@
+[Unit]
+Description=Configure PWM fan
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/rpi-temp-fan-pwm
+
+[Install]
+WantedBy=multi-user.target
