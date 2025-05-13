@@ -41,7 +41,7 @@ fn percentage_in_range(s: &str) -> Result<u8, String> {
     }
 }
 
-const temp_file: &str = "/sys/class/thermal/thermal_zone0/temp";
+const TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 
 // Gpio uses BCM pin numbering. BCM GPIO 23 is tied to physical pin 16.
 const GPIO_LED: u8 = 23;
@@ -65,7 +65,7 @@ fn main() -> Result<(), std::io::Error> {
         }
     }*/
 
-    match read_file_to_string(temp_file) {
+    match read_file_to_string(TEMP_FILE) {
         Ok(contents) => {
             println!("File Contents:\n{}", contents.trim());
             set_pwm(contents.trim());
