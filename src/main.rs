@@ -14,6 +14,7 @@ use log4rs::Config;
 
 use rppal::system::DeviceInfo;
 use std::env;
+use std::fs;
 use std::ops::RangeInclusive;
 
 //use rppal::pwm::{Channel, Polarity, Pwm};
@@ -119,10 +120,12 @@ fn _print_os_info() {
 }
 
 fn read_file_to_string(filename: &str) -> Result<String, io::Error> {
-    let mut file = File::open(filename)?;
+    /* let mut file = File::open(filename)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    Ok(contents)
+    Ok(contents)*/ 
+
+    fs::read_to_string(filename)
 }
 
 fn set_pwm(temp: &str) {
