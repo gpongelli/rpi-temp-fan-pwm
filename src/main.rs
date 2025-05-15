@@ -3,8 +3,17 @@ use std::fs::File;
 //use std::path::Path;
 use std::fmt::Debug;
 use std::io::{self, Read};
-//use rppal::gpio::Gpio;
+// use std::error::Error;
+use rppal::gpio::Gpio;
+use log4rs::encode::pattern::PatternEncoder;
+
+use log::{debug, error, info, warn, LevelFilter};
+use log4rs::append::console::ConsoleAppender;
+use log4rs::config::{Appender, Root};
+use log4rs::Config;
+
 use rppal::system::DeviceInfo;
+use std::env;
 use std::ops::RangeInclusive;
 
 //use rppal::pwm::{Channel, Polarity, Pwm};
@@ -26,15 +35,18 @@ struct CliArgs {
 
     #[arg(short, long, default_value_t = 2000)]
     pwm_freq: u16,
+
+    #[arg(short, long, default_value_t = LevelFilter::Info)]
+    log_level: LevelFilter,
 }
 
-const PORT_RANGE: RangeInclusive<usize> = 1..=100;
+const PERCENTAGE: RangeInclusive<usize> = 1..=100;
 
 fn percentage_in_range(s: &str) -> Result<u8, String> {
     let port: usize = s
         .parse()
         .map_err(|_| format!("`{s}` isn't a percentage number"))?;
-    if PORT_RANGE.contains(&port) {
+    if PERCENTAGE.contains(&port) {
         Ok(port as u8)
     } else {
         Err(format!("Value not in percentage range 0-100"))
@@ -49,6 +61,16 @@ const GPIO_LED: u8 = 23;
 fn main() -> Result<(), std::io::Error> {
     // parse CLI args
     let args = CliArgs::parse();
+
+    // https://medium.com/nerd-for-tech/logging-in-rust-e529c241f92e
+    // https://tms-dev-blog.com/log-to-a-file-in-rust-with-log4rs/
+    let stdout = ConsoleAppender::builder().encoder(Box::new(PatternEncoder::new("{h({d(%Y-%m-%d %H:%M:%S)(local)} - {l}: {m}{n})}"))).build();
+    let config = Config::builder()
+        .appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .build(Root::builder().appender("stdout").build(args.log_level))
+        .unwrap();
+    let _handle = log4rs::init_config(config).unwrap();
+
 
     //println!("ARGS: {:#?} - {:#?}", args.speed_step, args.temp_step);
     //println!("Hello, world!");
@@ -78,6 +100,22 @@ fn main() -> Result<(), std::io::Error> {
     }
 
     Ok(())
+}
+
+
+fn _print_os_info() {
+    
+    debug!("execution into container: {:#?}", in_container::in_container());
+    debug!("{}", env::consts::OS); // Prints the current OS.
+
+    let info = os_info::get();
+    // Print full information:
+    debug!("OS information: {info}");
+    // Print information separately:
+    debug!("Type: {}", info.os_type());
+    debug!("Version: {}", info.version());
+    debug!("Bitness: {}", info.bitness());
+    debug!("Architecture: {:#?}", info.architecture());
 }
 
 fn read_file_to_string(filename: &str) -> Result<String, io::Error> {

@@ -7,6 +7,9 @@ ARG USER_ID=1000
 ARG GROUP_ID=1000
 ARG USER_NAME=rustdev
 
+ENV TZ=Europe/Rome
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 
 # Create user with empty password
 RUN groupadd -g $GROUP_ID $USER_NAME && \
