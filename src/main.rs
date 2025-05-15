@@ -4,8 +4,8 @@ use std::fs::File;
 use std::fmt::Debug;
 use std::io::{self, Read};
 // use std::error::Error;
-use rppal::gpio::Gpio;
 use log4rs::encode::pattern::PatternEncoder;
+use rppal::gpio::Gpio;
 
 use log::{debug, error, info, warn, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
@@ -60,25 +60,74 @@ const TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 const GPIO_LED: u8 = 23;
 
 fn main() -> Result<(), std::io::Error> {
+    // -> Result<(), Box<dyn Error>>
     // parse CLI args
     let args = CliArgs::parse();
 
     // https://medium.com/nerd-for-tech/logging-in-rust-e529c241f92e
     // https://tms-dev-blog.com/log-to-a-file-in-rust-with-log4rs/
-    let stdout = ConsoleAppender::builder().encoder(Box::new(PatternEncoder::new("{h({d(%Y-%m-%d %H:%M:%S)(local)} - {l}: {m}{n})}"))).build();
+    let stdout = ConsoleAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(
+            "{h({d(%Y-%m-%d %H:%M:%S)(local)} - {l}: {m}{n})}",
+        )))
+        .build();
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .build(Root::builder().appender("stdout").build(args.log_level))
         .unwrap();
     let _handle = log4rs::init_config(config).unwrap();
 
-
     //println!("ARGS: {:#?} - {:#?}", args.speed_step, args.temp_step);
-    //println!("Hello, world!");
 
-    let device_info = DeviceInfo::new().unwrap();
-    println!("Modello: {} (SoC: {})", device_info.model(), device_info.soc());
-   
+    _print_os_info();
+
+    if !in_container::in_container() {
+        let device_info = {
+            match DeviceInfo::new() {
+                Ok(device_info) => {
+                    debug!(
+                        "Device: {} (SoC: {})",
+                        device_info.model(),
+                        device_info.soc()
+                    );
+                    device_info
+                }
+                Err(rppal::system::Error::UnknownModel) => {
+                    error!("Unknown model from rppal");
+                    return Err(io::Error::new(io::ErrorKind::Other, "Unknown device model"));
+                }
+            }
+        };
+
+        if let Ok(device_info) = DeviceInfo::new() {
+            debug!(
+                "Device: {} (SoC: {})",
+                device_info.model(),
+                device_info.soc()
+            );
+
+            match read_file_to_string(TEMP_FILE) {
+                Ok(contents) => {
+                    println!("File Contents:\n{}", contents.trim());
+                    set_pwm(contents.trim());
+                }
+                Err(e) => {
+                    error!("Error reading file: {}", e);
+                    return Err(e);
+                    /*eprintln!("Error reading file: {}", e);
+                    Err(e); */
+                }
+            }
+        } else {
+            error!("Error getting device info");
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Failed to get device info",
+            ));
+        }
+    } else {
+        debug!("Execution into container.");
+    }
 
     // File must exist in the current path
     /*if let Ok(lines) = read_lines("/sys/class/thermal/thermal_zone0/temp") {
@@ -88,26 +137,14 @@ fn main() -> Result<(), std::io::Error> {
         }
     }*/
 
-    match read_file_to_string(TEMP_FILE) {
-        Ok(contents) => {
-            println!("File Contents:\n{}", contents.trim());
-            set_pwm(contents.trim());
-        }
-        Err(e) => {
-            error!("Error reading file: {}", e);
-            return Err(e);
-            /*eprintln!("Error reading file: {}", e);
-            Err(e); */
-        }
-    }
-
     Ok(())
 }
 
-
 fn _print_os_info() {
-    
-    debug!("execution into container: {:#?}", in_container::in_container());
+    debug!(
+        "execution into container: {:#?}",
+        in_container::in_container()
+    );
     debug!("{}", env::consts::OS); // Prints the current OS.
 
     let info = os_info::get();
@@ -124,7 +161,7 @@ fn read_file_to_string(filename: &str) -> Result<String, io::Error> {
     /* let mut file = File::open(filename)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    Ok(contents)*/ 
+    Ok(contents)*/
 
     fs::read_to_string(filename)
 }
