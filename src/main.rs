@@ -94,6 +94,7 @@ fn main() -> Result<(), std::io::Error> {
             set_pwm(contents.trim());
         }
         Err(e) => {
+            error!("Error reading file: {}", e);
             return Err(e);
             /*eprintln!("Error reading file: {}", e);
             Err(e); */
