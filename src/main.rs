@@ -94,6 +94,14 @@ fn main() -> Result<(), std::io::Error> {
 
     //println!("ARGS: {:#?} - {:#?}", args.speed_step, args.temp_step);
 
+    if args.temp_step.len() != args.speed_step.len() {
+        error!("The number of temperature steps must match the number of speed steps");
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "The number of temperature steps must match the number of speed steps",
+        ));
+    }
+
     _print_os_info();
 
     if !in_container::in_container() {
