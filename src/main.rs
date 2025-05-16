@@ -19,6 +19,8 @@ use std::ops::RangeInclusive;
 
 //use rppal::pwm::{Channel, Polarity, Pwm};
 
+use rppal::pwm::{Channel, Polarity, Pwm};
+
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -34,11 +36,22 @@ struct CliArgs {
     #[arg(short,long, value_delimiter=',', default_value = "0,100", num_args = 1.. )]
     speed_step: Vec<u8>,
 
-    #[arg(short, long, default_value_t = 2000)]
-    pwm_freq: u16,
 
     #[arg(short, long, default_value_t = LevelFilter::Info)]
     log_level: LevelFilter,
+
+    #[arg(short = 'c', long, default_value_t = 0)]
+    pwm_channel: u8,
+
+    /// Frequency in Hz
+    /// Default: 2.0
+    #[arg(short = 'f', long, default_value_t = 2.0)]
+    pwm_freq: f64,
+
+    /// Duty cycle in percentage
+    /// Default: 25.0
+    #[arg(short = 'u', long, default_value_t = 25.0)]
+    pwm_duty: f64,
 }
 
 const PERCENTAGE: RangeInclusive<usize> = 1..=100;
@@ -109,7 +122,7 @@ fn main() -> Result<(), std::io::Error> {
             match read_file_to_string(TEMP_FILE) {
                 Ok(contents) => {
                     println!("File Contents:\n{}", contents.trim());
-                    set_pwm(contents.trim());
+                    let _ = set_pwm(contents.trim(), &args);
                 }
                 Err(e) => {
                     error!("Error reading file: {}", e);
@@ -166,14 +179,17 @@ fn read_file_to_string(filename: &str) -> Result<String, io::Error> {
     fs::read_to_string(filename)
 }
 
-fn set_pwm(temp: &str) {
+fn set_pwm(temp: &str, cli_args: &CliArgs) -> Result<(), Box<dyn std::error::Error>> {
 
     //println!("Ancora {}", temp);
     // Enable PWM channel 0 (BCM GPIO 12, physical pin 32) at 2 Hz with a 25% duty cycle.
-    //let pwm = Pwm::with_frequency(Channel::Pwm0, 2.0, 0.25, Polarity::Normal, true)?;
+    let _ = Pwm::with_frequency(Channel::try_from(cli_args.pwm_channel)?, 
+    cli_args.pwm_freq, cli_args.pwm_duty / 100.0, Polarity::Normal, true)?;
 
     // Reconfigure the PWM channel for an 8 Hz frequency, 50% duty cycle.
-    //pwm.set_frequency(8.0, 0.5)?;
+    // pwm.set_frequency(8.0, 0.5)?;
+
+    Ok(())
 }
 
 // The output is wrapped in a Result to allow matching on errors.
