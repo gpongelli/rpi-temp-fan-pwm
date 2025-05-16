@@ -66,7 +66,7 @@ const TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 // Gpio uses BCM pin numbering. BCM GPIO 23 is tied to physical pin 16.
 //const GPIO_LED: u8 = 23;
 
-fn main() -> Result<(), std::io::Error> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // -> Result<(), Box<dyn Error>>
     // parse CLI cli_args
     let cli_args = CliArgs::parse();
@@ -99,13 +99,13 @@ fn main() -> Result<(), std::io::Error> {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "The number of temperature steps must match the number of speed steps",
-        ));
+        ).into());
     }
 
     _print_os_info();
 
     if !in_container::in_container() {
-        let device_info = {
+        let _ = {  // device_info unused, code to understand if it's raspberrry pi
             match DeviceInfo::new() {
                 Ok(device_info) => {
                     debug!(
@@ -115,9 +115,9 @@ fn main() -> Result<(), std::io::Error> {
                     );
                     device_info
                 }
-                Err(rppal::system::Error::UnknownModel) => {
-                    error!("Unknown model from rppal");
-                    return Err(io::Error::new(io::ErrorKind::Other, "Unknown device model"));
+                Err(e) => {
+                    error!("Error getting device info: {}", e);
+                    return Err(io::Error::new(io::ErrorKind::Other, "Error getting device info").into());
                 }
             }
         };
