@@ -122,7 +122,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        if let Ok(device_info) = DeviceInfo::new() {
+        // raspberry model, can continue from here
+        match read_file_to_string(TEMP_FILE) {
+            Ok(contents) => {
+                info!("File Contents:\n{}", contents.trim());
+                let _ = set_pwm(contents.trim(), &cli_args);
+            }
+            Err(e) => {
+                error!("Error reading file: {}", e);
+                return Err(e.into());
+            }
+        }
+
+        /*if let Ok(device_info) = DeviceInfo::new() {
             debug!(
                 "Device: {} (SoC: {})",
                 device_info.model(),
@@ -145,7 +157,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 io::ErrorKind::Other,
                 "Failed to get device info",
             ));
-        }
+        }*/
     } else {
         debug!("Execution into container.");
     }
