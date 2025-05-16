@@ -31,7 +31,7 @@ struct CliArgs {
 
     #[arg(short = 's', long, value_delimiter=',', default_value = "20,50,100", num_args = 1.., value_parser = percentage_in_range)]
     speed_step: Vec<u8>,
-    
+
     // Manually set speed step in percentage
     #[arg(short = 'u', long, value_parser = percentage_in_range)]
     manual_speed: Option<u8>,
@@ -64,7 +64,7 @@ fn percentage_in_range(s: &str) -> Result<u8, String> {
 const TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 
 // Gpio uses BCM pin numbering. BCM GPIO 23 is tied to physical pin 16.
-const GPIO_LED: u8 = 23;
+//const GPIO_LED: u8 = 23;
 
 fn main() -> Result<(), std::io::Error> {
     // -> Result<(), Box<dyn Error>>
@@ -82,7 +82,8 @@ fn main() -> Result<(), std::io::Error> {
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .build(
             Root::builder().appender("stdout").build(
-                cli_args.verbose
+                cli_args
+                    .verbose
                     .log_level()
                     .expect("Verbosity should be convertible to LevelFilter")
                     .to_level_filter(),
@@ -136,8 +137,6 @@ fn main() -> Result<(), std::io::Error> {
                 Err(e) => {
                     error!("Error reading file: {}", e);
                     return Err(e);
-                    /*eprintln!("Error reading file: {}", e);
-                    Err(e); */
                 }
             }
         } else {
@@ -188,7 +187,6 @@ fn read_file_to_string(filename: &str) -> Result<String, io::Error> {
     fs::read_to_string(filename)
 }
 
-
 // Get speed interpolating array's values
 fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
     // manually forced value
@@ -205,17 +203,16 @@ fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
 
     // temp below first value
     if temp < cli_args.temp_step[0] {
-        debug!("speed: {}", cli_args.speed_step[0]);
+        debug!("min speed: {}", cli_args.speed_step[0]);
         return cli_args.speed_step[0];
     }
 
-    if temp > last_temp  {
-        debug!("speed: {}", speed);
+    if temp > last_temp {
+        debug!("max speed: {}", speed);
         return speed;
     }
 
     for (i, &step_temp) in cli_args.temp_step.iter().enumerate() {
-        //let step_temp = cli_args.temp_step[i];
         let next_step_temp = cli_args.temp_step[i + 1];
 
         info!("Temperature step[{}]: {}", i, step_temp);
@@ -235,7 +232,6 @@ fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
     debug!("speed: {}", speed);
     speed
 }
-
 
 /* // Get speed from array
 fn get_fan_speed(temp: u8, cli_args: &CliArgs) -> u8 {
@@ -268,12 +264,11 @@ fn get_fan_speed(temp: u8, cli_args: &CliArgs) -> u8 {
 
 fn set_pwm(temp: &str, cli_args: &CliArgs) -> Result<(), Box<dyn std::error::Error>> {
 
-    //println!("Ancora {}", temp);
     // Enable PWM channel 0 (BCM GPIO 12, physical pin 32) at 2 Hz with a 25% duty cycle.
     let _ = Pwm::with_frequency(
         Channel::try_from(cli_args.pwm_channel)?,
         cli_args.pwm_freq,
-        cli_args.pwm_duty / 100.0,
+        (fan_speed as f64) / 100.0,
         Polarity::Normal,
         true,
     )?;
