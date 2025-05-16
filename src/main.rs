@@ -68,8 +68,8 @@ const GPIO_LED: u8 = 23;
 
 fn main() -> Result<(), std::io::Error> {
     // -> Result<(), Box<dyn Error>>
-    // parse CLI args
-    let args = CliArgs::parse();
+    // parse CLI cli_args
+    let cli_args = CliArgs::parse();
 
     // https://medium.com/nerd-for-tech/logging-in-rust-e529c241f92e
     // https://tms-dev-blog.com/log-to-a-file-in-rust-with-log4rs/
@@ -82,7 +82,7 @@ fn main() -> Result<(), std::io::Error> {
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .build(
             Root::builder().appender("stdout").build(
-                args.verbose
+                cli_args.verbose
                     .log_level()
                     .expect("Verbosity should be convertible to LevelFilter")
                     .to_level_filter(),
@@ -91,9 +91,9 @@ fn main() -> Result<(), std::io::Error> {
         .unwrap();
     let _handle = log4rs::init_config(config).unwrap();
 
-    //println!("ARGS: {:#?} - {:#?}", args.speed_step, args.temp_step);
+    //println!("cli_args: {:#?} - {:#?}", cli_args.speed_step, cli_args.temp_step);
 
-    if args.temp_step.len() != args.speed_step.len() {
+    if cli_args.temp_step.len() != cli_args.speed_step.len() {
         error!("The number of temperature steps must match the number of speed steps");
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -131,7 +131,7 @@ fn main() -> Result<(), std::io::Error> {
             match read_file_to_string(TEMP_FILE) {
                 Ok(contents) => {
                     info!("File Contents:\n{}", contents.trim());
-                    let _ = set_pwm(contents.trim(), &args);
+                    let _ = set_pwm(contents.trim(), &cli_args);
                 }
                 Err(e) => {
                     error!("Error reading file: {}", e);
