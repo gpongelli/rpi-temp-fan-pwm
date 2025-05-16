@@ -30,10 +30,10 @@ struct CliArgs {
     bcm_pin: u8,
 
     //https://stackoverflow.com/questions/73240901/how-to-get-clap-to-process-a-single-argument-with-multiple-values-without-having
-    #[arg(short,long, value_delimiter=',', default_value = "60,80", num_args = 1.., value_parser = percentage_in_range)]
+    #[arg(short = 't', long, value_delimiter=',', default_value = "60,80", num_args = 1..)]
     temp_step: Vec<u8>,
 
-    #[arg(short,long, value_delimiter=',', default_value = "0,100", num_args = 1.. )]
+    #[arg(short = 's', long, value_delimiter=',', default_value = "1,100", num_args = 1.., value_parser = percentage_in_range)]
     speed_step: Vec<u8>,
 
 
