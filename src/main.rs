@@ -26,10 +26,10 @@ struct CliArgs {
     bcm_pin: u8,
 
     //https://stackoverflow.com/questions/73240901/how-to-get-clap-to-process-a-single-argument-with-multiple-values-without-having
-    #[arg(short = 't', long, value_delimiter=',', default_value = "60,80", num_args = 1..)]
+    #[arg(short = 't', long, value_delimiter=',', default_value = "50,70,80", num_args = 1..)]
     temp_step: Vec<u8>,
 
-    #[arg(short = 's', long, value_delimiter=',', default_value = "1,100", num_args = 1.., value_parser = percentage_in_range)]
+    #[arg(short = 's', long, value_delimiter=',', default_value = "20,50,100", num_args = 1.., value_parser = percentage_in_range)]
     speed_step: Vec<u8>,
 
     #[command(flatten)]
@@ -123,7 +123,7 @@ fn main() -> Result<(), std::io::Error> {
 
             match read_file_to_string(TEMP_FILE) {
                 Ok(contents) => {
-                    println!("File Contents:\n{}", contents.trim());
+                    info!("File Contents:\n{}", contents.trim());
                     let _ = set_pwm(contents.trim(), &args);
                 }
                 Err(e) => {
@@ -180,6 +180,70 @@ fn read_file_to_string(filename: &str) -> Result<String, io::Error> {
 
     fs::read_to_string(filename)
 }
+
+
+// Get speed interpolating array's values
+fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
+    let mut speed: u8 = *cli_args.speed_step.last().unwrap();
+    let last_temp = *cli_args.temp_step.last().unwrap();
+
+    info!("{}", temp);
+
+    // temp below first value
+    if temp < cli_args.temp_step[0] {
+        debug!("speed: {}", cli_args.speed_step[0]);
+        return cli_args.speed_step[0];
+    }
+
+    if temp > last_temp  {
+        debug!("speed: {}", speed);
+        return speed;
+    }
+
+    for (i, &step_temp) in cli_args.temp_step.iter().enumerate() {
+        //let step_temp = cli_args.temp_step[i];
+        let next_step_temp = cli_args.temp_step[i + 1];
+
+        info!("Temperature step[{}]: {}", i, step_temp);
+
+        if (temp >= step_temp) && (temp <= next_step_temp) {
+            // Linear interpolation
+            let temp_range = next_step_temp - step_temp;
+            let speed_range = cli_args.speed_step[i + 1] - cli_args.speed_step[i];
+            let temp_diff = temp - step_temp;
+            speed = cli_args.speed_step[i] + (speed_range * temp_diff) / temp_range;
+            debug!("Linear interpolation: {}", speed);
+            return speed;
+        }
+    }
+
+    debug!("temp: {}", temp);
+    debug!("speed: {}", speed);
+    speed
+}
+
+
+/* // Get speed from array
+fn get_fan_speed(temp: u8, cli_args: &CliArgs) -> u8 {
+    // Find the index of the temperature step
+    let mut temp_idx: usize = cli_args.temp_step.len() - 1;  // by default at maximum temperature
+    for (i, &v) in cli_args.temp_step.iter().enumerate() {
+        info!("Temperature step[{}]: {}", i, v);
+        if temp > v{
+            continue;
+        } else {
+            temp_idx = i;
+            break;
+        }
+    }
+
+    debug!("temp: {}", temp);
+    debug!("Temperature index: {}", temp_idx);
+    debug!("temp at index: {}", cli_args.temp_step[temp_idx]);
+    debug!("speed at index: {}", cli_args.speed_step[temp_idx]);
+    // Get the fan speed at the index
+    cli_args.speed_step[temp_idx]
+} */
 
 fn set_pwm(temp: &str, cli_args: &CliArgs) -> Result<(), Box<dyn std::error::Error>> {
 
