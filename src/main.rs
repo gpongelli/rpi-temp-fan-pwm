@@ -8,6 +8,8 @@ use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Root};
 use log4rs::Config;
 
+use num_traits::cast::ToPrimitive;
+
 use rppal::system::DeviceInfo;
 use std::env;
 use std::fs;
