@@ -31,6 +31,10 @@ struct CliArgs {
 
     #[arg(short = 's', long, value_delimiter=',', default_value = "20,50,100", num_args = 1.., value_parser = percentage_in_range)]
     speed_step: Vec<u8>,
+    
+    // Manually set speed step in percentage
+    #[arg(short = 'u', long, value_parser = percentage_in_range)]
+    manual_speed: Option<u8>,
 
     #[command(flatten)]
     verbose: clap_verbosity_flag::Verbosity,
@@ -42,11 +46,6 @@ struct CliArgs {
     /// Default: 2.0
     #[arg(short = 'f', long, default_value_t = 2.0)]
     pwm_freq: f64,
-
-    /// Duty cycle in percentage
-    /// Default: 25.0
-    #[arg(short = 'u', long, default_value_t = 25.0)]
-    pwm_duty: f64,
 }
 
 const PERCENTAGE: RangeInclusive<usize> = 1..=100;
@@ -192,6 +191,13 @@ fn read_file_to_string(filename: &str) -> Result<String, io::Error> {
 
 // Get speed interpolating array's values
 fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
+    // manually forced value
+    if cli_args.manual_speed.is_some() {
+        let val = cli_args.manual_speed.unwrap();
+        debug!("manual speed: {}", val);
+        return val;
+    }
+
     let mut speed: u8 = *cli_args.speed_step.last().unwrap();
     let last_temp = *cli_args.temp_step.last().unwrap();
 
@@ -233,6 +239,13 @@ fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
 
 /* // Get speed from array
 fn get_fan_speed(temp: u8, cli_args: &CliArgs) -> u8 {
+    // manually forced value
+    if cli_args.manual_speed.is_some() {
+        let val = cli_args.manual_speed.unwrap();
+        debug!("manual speed: {}", val);
+        return val;
+    }
+
     // Find the index of the temperature step
     let mut temp_idx: usize = cli_args.temp_step.len() - 1;  // by default at maximum temperature
     for (i, &v) in cli_args.temp_step.iter().enumerate() {
