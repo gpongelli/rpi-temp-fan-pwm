@@ -211,34 +211,47 @@ fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
     let mut speed: u8 = *cli_args.speed_step.last().unwrap();
     let last_temp = *cli_args.temp_step.last().unwrap();
 
-    info!("{}", temp);
+    info!("temp: {}", temp);
 
     // temp below first value
     if temp < cli_args.temp_step[0] {
         debug!("min speed: {}", cli_args.speed_step[0]);
-        return cli_args.speed_step[0];
-    }
-
-    if temp > last_temp {
+        speed = cli_args.speed_step[0];
+    } else if temp > last_temp {
         debug!("max speed: {}", speed);
-        return speed;
-    }
+        speed = speed.try_into().unwrap();
+    } else {
+        for (i, &step_temp) in cli_args.temp_step.iter().enumerate() {
+            let next_step_temp = cli_args.temp_step[i + 1] ;
 
-    for (i, &step_temp) in cli_args.temp_step.iter().enumerate() {
-        let next_step_temp = cli_args.temp_step[i + 1];
+            let speed_step = cli_args.speed_step[i];
+            let next_speed_step = cli_args.speed_step[i + 1];
 
-        info!("Temperature step[{}]: {}", i, step_temp);
+            debug!("Temperature step[{}]: {}", i, step_temp);
+            debug!("Temperature next step[{}]: {}", i+1, next_step_temp);
 
-        if (temp >= step_temp) && (temp <= next_step_temp) {
-            // Linear interpolation
-            let temp_range = next_step_temp - step_temp;
-            let speed_range = cli_args.speed_step[i + 1] - cli_args.speed_step[i];
-            let temp_diff = temp - step_temp;
-            speed = cli_args.speed_step[i] + (speed_range * temp_diff) / temp_range;
-            debug!("Linear interpolation: {}", speed);
-            return speed;
+            if (temp >= step_temp) && (temp <= next_step_temp) {
+                // Linear interpolation
+                let temp_range: u8 = next_step_temp - step_temp;
+                let speed_range: u8 = next_speed_step - speed_step;
+                let temp_diff: u8 = temp - step_temp;
+
+                debug!("temp_diff: {}", temp_diff);
+                debug!("temp_range: {}", temp_range);
+                debug!("speed_range: {}", speed_range);
+
+                let speed_range: u16 = speed_range as u16;
+                let temp_diff: u16 = temp_diff as u16;
+                let temp_range: u16 = temp_range as u16;
+                let speed_step: u16 = speed_step as u16;
+                let calc: u16 = speed_range * temp_diff / temp_range;
+
+                speed = (speed_step + calc).try_into().unwrap();
+                debug!("Linear interpolation: {}", speed);
+                break;
+            }
         }
-    }
+    }   
 
     debug!("temp: {}", temp);
     debug!("speed: {}", speed);
@@ -315,3 +328,71 @@ where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }*/
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cli_args(
+        temp_step: Vec<u8>,
+        speed_step: Vec<u8>,
+        manual_speed: Option<u8>,
+    ) -> CliArgs {
+        CliArgs {
+            bcm_pin: 21,
+            temp_step,
+            speed_step,
+            manual_speed,
+            verbose: clap_verbosity_flag::Verbosity::default(),
+            pwm_channel: 0,
+            pwm_freq: 2.0,
+        }
+    }
+
+    #[test]
+    fn test_manual_speed() {
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], Some(42));
+        assert_eq!(get_fan_speed_linear(60, &args), 42);
+        assert_eq!(get_fan_speed_linear(80, &args), 42);
+    }
+
+    #[test]
+    fn test_below_first_temp() {
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
+        assert_eq!(get_fan_speed_linear(40, &args), 20);
+        assert_eq!(get_fan_speed_linear(0, &args), 20);
+    }
+
+    #[test]
+    fn test_above_last_temp() {
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
+        assert_eq!(get_fan_speed_linear(90, &args), 100);
+        assert_eq!(get_fan_speed_linear(255, &args), 100);
+    }
+
+    #[test]
+    fn test_exact_temp_steps() {
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
+        assert_eq!(get_fan_speed_linear(50, &args), 20);
+        assert_eq!(get_fan_speed_linear(70, &args), 50);
+        assert_eq!(get_fan_speed_linear(80, &args), 100);
+    }
+
+    #[test]
+    fn test_linear_interpolation() {
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
+        // Between 50 and 70: 20 -> 50
+        assert_eq!(get_fan_speed_linear(65, &args), 42);
+        // Between 70 and 80: 50 -> 100
+        assert_eq!(get_fan_speed_linear(75, &args), 75);
+    }
+
+    #[test]
+    fn test_non_uniform_steps() {
+        let args = cli_args(vec![40, 60, 90], vec![10, 60, 80], None);
+        // Between 40 and 60: 10 -> 60
+        assert_eq!(get_fan_speed_linear(50, &args), 35);
+        // Between 60 and 90: 60 -> 80
+        assert_eq!(get_fan_speed_linear(75, &args), 70);
+    }
+}
