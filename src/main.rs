@@ -263,6 +263,23 @@ fn get_fan_speed(temp: u8, cli_args: &CliArgs) -> u8 {
 } */
 
 fn set_pwm(temp: &str, cli_args: &CliArgs) -> Result<(), Box<dyn std::error::Error>> {
+    // Convert the string to a u8
+    let temp: u8 = {
+        match temp.parse::<f32>() {
+            Ok(f) => f.round().to_u8().unwrap(),
+            Err(e) => {
+                error!("Failed to parse temperature: {}", e);
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "Failed to parse temperature",
+                )
+                .into());
+            }
+        }
+    };
+    debug!("Temperature: {}", temp);
+
+    let fan_speed = get_fan_speed_linear(temp, cli_args);
 
     // Enable PWM channel 0 (BCM GPIO 12, physical pin 32) at 2 Hz with a 25% duty cycle.
     let _ = Pwm::with_frequency(
