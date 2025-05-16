@@ -36,9 +36,8 @@ struct CliArgs {
     #[arg(short = 's', long, value_delimiter=',', default_value = "1,100", num_args = 1.., value_parser = percentage_in_range)]
     speed_step: Vec<u8>,
 
-
-    #[arg(short, long, default_value_t = LevelFilter::Info)]
-    log_level: LevelFilter,
+    #[command(flatten)]
+    verbose: clap_verbosity_flag::Verbosity,
 
     #[arg(short = 'c', long, default_value_t = 0)]
     pwm_channel: u8,
@@ -86,7 +85,11 @@ fn main() -> Result<(), std::io::Error> {
         .build();
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .build(Root::builder().appender("stdout").build(args.log_level))
+        .build(
+            Root::builder()
+                .appender("stdout")
+                .build( args.verbose.log_level().expect("Verbosity should be convertible to LevelFilter").to_level_filter())
+        )
         .unwrap();
     let _handle = log4rs::init_config(config).unwrap();
 
