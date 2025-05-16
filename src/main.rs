@@ -1,13 +1,9 @@
-use std::fs::File;
-//use std::io::{self, BufRead, BufReader};
-//use std::path::Path;
-use std::fmt::Debug;
-use std::io::{self, Read};
-// use std::error::Error;
 use log4rs::encode::pattern::PatternEncoder;
-use rppal::gpio::Gpio;
 
-use log::{debug, error, info, warn, LevelFilter};
+use std::fmt::Debug;
+use std::io::{self};
+
+use log::{debug, error, info, warn};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Root};
 use log4rs::Config;
@@ -16,8 +12,6 @@ use rppal::system::DeviceInfo;
 use std::env;
 use std::fs;
 use std::ops::RangeInclusive;
-
-//use rppal::pwm::{Channel, Polarity, Pwm};
 
 use rppal::pwm::{Channel, Polarity, Pwm};
 
@@ -86,9 +80,12 @@ fn main() -> Result<(), std::io::Error> {
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .build(
-            Root::builder()
-                .appender("stdout")
-                .build( args.verbose.log_level().expect("Verbosity should be convertible to LevelFilter").to_level_filter())
+            Root::builder().appender("stdout").build(
+                args.verbose
+                    .log_level()
+                    .expect("Verbosity should be convertible to LevelFilter")
+                    .to_level_filter(),
+            ),
         )
         .unwrap();
     let _handle = log4rs::init_config(config).unwrap();
@@ -186,8 +183,13 @@ fn set_pwm(temp: &str, cli_args: &CliArgs) -> Result<(), Box<dyn std::error::Err
 
     //println!("Ancora {}", temp);
     // Enable PWM channel 0 (BCM GPIO 12, physical pin 32) at 2 Hz with a 25% duty cycle.
-    let _ = Pwm::with_frequency(Channel::try_from(cli_args.pwm_channel)?, 
-    cli_args.pwm_freq, cli_args.pwm_duty / 100.0, Polarity::Normal, true)?;
+    let _ = Pwm::with_frequency(
+        Channel::try_from(cli_args.pwm_channel)?,
+        cli_args.pwm_freq,
+        cli_args.pwm_duty / 100.0,
+        Polarity::Normal,
+        true,
+    )?;
 
     // Reconfigure the PWM channel for an 8 Hz frequency, 50% duty cycle.
     // pwm.set_frequency(8.0, 0.5)?;
