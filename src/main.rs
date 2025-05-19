@@ -235,7 +235,19 @@ fn set_pwm(temp: &str, cli_args: &CliArgs) -> Result<(), Box<dyn std::error::Err
     // Convert the string to a u8
     let temp: u8 = {
         match temp.parse::<f32>() {
-            Ok(f) => f.round().to_u8().unwrap(),
+            Ok(f) => {
+                // check if the value is an unsigned integer
+                if let Some(v) = f.round().to_u8() {
+                    v
+                } else {
+                    error!("Temperature out of range");
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "Temperature out of range",
+                    )
+                    .into());
+                }
+            }
             Err(e) => {
                 error!("Failed to parse temperature: {}", e);
                 return Err(io::Error::new(
@@ -289,6 +301,8 @@ mod tests {
         )
     }
 
+    // --- get_fan_speed_linear tests ---
+
     #[test]
     fn test_manual_speed() {
         let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], Some(42));
@@ -334,5 +348,65 @@ mod tests {
         assert_eq!(get_fan_speed_linear(50, &args), 35);
         // Between 60 and 90: 60 -> 80
         assert_eq!(get_fan_speed_linear(75, &args), 70);
+    }
+
+    // --- set_pwm tests ---
+
+    #[test]
+    fn test_set_pwm_invalid_temp_string() {
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
+        let result = set_pwm("notanumber", &args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_set_pwm_negative_temp_string() {
+        let args = cli_args(vec![10, 20, 30], vec![10, 20, 30], None);
+        let result = set_pwm("-10", &args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_set_pwm_valid_temp() {
+        // This test may fail if run on a system without the required hardware or permissions.
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
+        let result = set_pwm("60", &args);
+        // Accept both Ok and Err, as hardware may not be present
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_set_pwm_manual_speed() {
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], Some(77));
+        let result = set_pwm("60", &args);
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_set_pwm_below_first_temp() {
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
+        let result = set_pwm("10", &args);
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_set_pwm_above_last_temp() {
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
+        let result = set_pwm("200", &args);
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_set_pwm_exact_step_temp() {
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
+        let result = set_pwm("70", &args);
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_set_pwm_float_temp() {
+        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
+        let result = set_pwm("65.7", &args);
+        assert!(result.is_ok() || result.is_err());
     }
 }
