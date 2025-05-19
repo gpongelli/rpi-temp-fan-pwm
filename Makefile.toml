@@ -34,7 +34,7 @@ dependencies = [
 
 [tasks.cog-bump]
 command = "cog"
-args = ["bump"]
+args = ["bump", "--auto"]
 
 
 [tasks.do-release]
