@@ -38,7 +38,7 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         ca-certificates \
-        gcc \
+        gcc gnupg2 \
         libc6-dev \
         wget curl \
         python3 pipx nano bash git libpython3-dev sudo \ 

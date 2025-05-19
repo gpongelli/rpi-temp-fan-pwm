@@ -11,7 +11,7 @@ skip_untracked = false
 tag_prefix = ""
 pre_bump_hooks = [
     "cargo build --release",  # also done in cargo-make
-    #"echo 'bump from {{latest}} to {{version}}'",
+    # "echo 'bump from {{latest}} to {{version}}'",
 ]
 post_bump_hooks = []
 pre_package_bump_hooks = []
