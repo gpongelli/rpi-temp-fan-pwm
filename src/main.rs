@@ -1,6 +1,6 @@
 use std::io::{self};
 
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 
 use num_traits::cast::ToPrimitive;
 
