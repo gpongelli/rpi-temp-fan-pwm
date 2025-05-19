@@ -14,7 +14,10 @@ pre_bump_hooks = [
     # "echo 'bump from {{latest}} to {{version}}'",
     "cargo bump {{version|0.0.1}}",
 ]
-post_bump_hooks = []
+post_bump_hooks = [
+    "git push origin main",
+    "git push origin {{version}}",
+]
 pre_package_bump_hooks = []
 post_package_bump_hooks = []
 
