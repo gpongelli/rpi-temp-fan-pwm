@@ -1,65 +1,22 @@
-use log4rs::encode::pattern::PatternEncoder;
-
-use std::fmt::Debug;
 use std::io::{self};
 
 use log::{debug, error, info, warn};
-use log4rs::append::console::ConsoleAppender;
-use log4rs::config::{Appender, Root};
-use log4rs::Config;
 
 use num_traits::cast::ToPrimitive;
 
 use rppal::system::DeviceInfo;
 use std::env;
 use std::fs;
-use std::ops::RangeInclusive;
 
 use rppal::pwm::{Channel, Polarity, Pwm};
 
 use clap::Parser;
 
-#[derive(Parser, Debug)]
-#[command(version, about, long_about=None)]
-struct CliArgs {
-    #[arg(short, long, default_value_t = 21)]
-    bcm_pin: u8,
+mod cli_arguments;
+use crate::cli_arguments::cli_args::CliArgs;
 
-    //https://stackoverflow.com/questions/73240901/how-to-get-clap-to-process-a-single-argument-with-multiple-values-without-having
-    #[arg(short = 't', long, value_delimiter=',', default_value = "50,70,80", num_args = 1..)]
-    temp_step: Vec<u8>,
-
-    #[arg(short = 's', long, value_delimiter=',', default_value = "20,50,100", num_args = 1.., value_parser = percentage_in_range)]
-    speed_step: Vec<u8>,
-
-    // Manually set speed step in percentage
-    #[arg(short = 'u', long, value_parser = percentage_in_range)]
-    manual_speed: Option<u8>,
-
-    #[command(flatten)]
-    verbose: clap_verbosity_flag::Verbosity,
-
-    #[arg(short = 'c', long, default_value_t = 0)]
-    pwm_channel: u8,
-
-    /// Frequency in Hz
-    /// Default: 2.0
-    #[arg(short = 'f', long, default_value_t = 2.0)]
-    pwm_freq: f64,
-}
-
-const PERCENTAGE: RangeInclusive<usize> = 1..=100;
-
-fn percentage_in_range(s: &str) -> Result<u8, String> {
-    let port: usize = s
-        .parse()
-        .map_err(|_| format!("`{s}` isn't a percentage number"))?;
-    if PERCENTAGE.contains(&port) {
-        Ok(port as u8)
-    } else {
-        Err(format!("Value not in percentage range 0-100"))
-    }
-}
+mod logger;
+use crate::logger::app_logger;
 
 const TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 
@@ -67,45 +24,27 @@ const TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 //const GPIO_LED: u8 = 23;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // -> Result<(), Box<dyn Error>>
     // parse CLI cli_args
     let cli_args = CliArgs::parse();
 
-    // https://medium.com/nerd-for-tech/logging-in-rust-e529c241f92e
-    // https://tms-dev-blog.com/log-to-a-file-in-rust-with-log4rs/
-    let stdout = ConsoleAppender::builder()
-        .encoder(Box::new(PatternEncoder::new(
-            "{h({d(%Y-%m-%d %H:%M:%S)(local)} - {l}: {m}{n})}",
-        )))
-        .build();
-    let config = Config::builder()
-        .appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .build(
-            Root::builder().appender("stdout").build(
-                cli_args
-                    .verbose
-                    .log_level()
-                    .expect("Verbosity should be convertible to LevelFilter")
-                    .to_level_filter(),
-            ),
-        )
-        .unwrap();
-    let _handle = log4rs::init_config(config).unwrap();
+    let _ = app_logger::configure_logger(&cli_args);
 
     //println!("cli_args: {:#?} - {:#?}", cli_args.speed_step, cli_args.temp_step);
 
-    if cli_args.temp_step.len() != cli_args.speed_step.len() {
+    if !cli_args.valid() {
         error!("The number of temperature steps must match the number of speed steps");
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "The number of temperature steps must match the number of speed steps",
-        ).into());
+        )
+        .into());
     }
 
     _print_os_info();
 
     if !in_container::in_container() {
-        let _ = {  // device_info unused, code to understand if it's raspberrry pi
+        let _ = {
+            // device_info unused, code to understand if it's raspberrry pi
             match DeviceInfo::new() {
                 Ok(device_info) => {
                     debug!(
@@ -117,7 +56,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 Err(e) => {
                     error!("Error getting device info: {}", e);
-                    return Err(io::Error::new(io::ErrorKind::Other, "Error getting device info").into());
+                    return Err(
+                        io::Error::new(io::ErrorKind::Other, "Error getting device info").into(),
+                    );
                 }
             }
         };
@@ -178,7 +119,7 @@ fn _print_os_info() {
         "execution into container: {:#?}",
         in_container::in_container()
     );
-    debug!("{}", env::consts::OS); // Prints the current OS.
+    debug!("OS: {}", env::consts::OS); // Prints the current OS.
 
     let info = os_info::get();
     // Print full information:
@@ -202,33 +143,36 @@ fn read_file_to_string(filename: &str) -> Result<String, io::Error> {
 // Get speed interpolating array's values
 fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
     // manually forced value
-    if cli_args.manual_speed.is_some() {
-        let val = cli_args.manual_speed.unwrap();
+    if cli_args.get_manual_speed().is_some() {
+        let val = cli_args.get_manual_speed().unwrap();
         debug!("manual speed: {}", val);
         return val;
     }
 
-    let mut speed: u8 = *cli_args.speed_step.last().unwrap();
-    let last_temp = *cli_args.temp_step.last().unwrap();
+    let cfg_speed = cli_args.get_speed_step();
+    let cfg_temp = cli_args.get_temp_step();
+
+    let mut speed: u8 = *cfg_speed.last().unwrap();
+    let last_temp = *cfg_temp.last().unwrap();
 
     info!("temp: {}", temp);
 
     // temp below first value
-    if temp < cli_args.temp_step[0] {
-        debug!("min speed: {}", cli_args.speed_step[0]);
-        speed = cli_args.speed_step[0];
+    if temp < cfg_temp[0] {
+        debug!("min speed: {}", cfg_speed[0]);
+        speed = cfg_speed[0];
     } else if temp > last_temp {
         debug!("max speed: {}", speed);
         speed = speed.try_into().unwrap();
     } else {
-        for (i, &step_temp) in cli_args.temp_step.iter().enumerate() {
-            let next_step_temp = cli_args.temp_step[i + 1] ;
+        for (i, &step_temp) in cfg_temp.iter().enumerate() {
+            let next_step_temp = cfg_temp[i + 1];
 
-            let speed_step = cli_args.speed_step[i];
-            let next_speed_step = cli_args.speed_step[i + 1];
+            let speed_step = cfg_speed[i];
+            let next_speed_step = cfg_speed[i + 1];
 
             debug!("Temperature step[{}]: {}", i, step_temp);
-            debug!("Temperature next step[{}]: {}", i+1, next_step_temp);
+            debug!("Temperature next step[{}]: {}", i + 1, next_step_temp);
 
             if (temp >= step_temp) && (temp <= next_step_temp) {
                 // Linear interpolation
@@ -251,7 +195,7 @@ fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
                 break;
             }
         }
-    }   
+    }
 
     debug!("temp: {}", temp);
     debug!("speed: {}", speed);
@@ -308,8 +252,8 @@ fn set_pwm(temp: &str, cli_args: &CliArgs) -> Result<(), Box<dyn std::error::Err
 
     // Enable PWM channel 0 (BCM GPIO 12, physical pin 32) at 2 Hz with a 25% duty cycle.
     let _ = Pwm::with_frequency(
-        Channel::try_from(cli_args.pwm_channel)?,
-        cli_args.pwm_freq,
+        Channel::try_from(cli_args.get_pwm_channel())?,
+        cli_args.get_pwm_freq(),
         (fan_speed as f64) / 100.0,
         Polarity::Normal,
         true,
@@ -333,20 +277,16 @@ where P: AsRef<Path>, {
 mod tests {
     use super::*;
 
-    fn cli_args(
-        temp_step: Vec<u8>,
-        speed_step: Vec<u8>,
-        manual_speed: Option<u8>,
-    ) -> CliArgs {
-        CliArgs {
-            bcm_pin: 21,
+    fn cli_args(temp_step: Vec<u8>, speed_step: Vec<u8>, manual_speed: Option<u8>) -> CliArgs {
+        CliArgs::new(
+            21,
             temp_step,
             speed_step,
             manual_speed,
-            verbose: clap_verbosity_flag::Verbosity::default(),
-            pwm_channel: 0,
-            pwm_freq: 2.0,
-        }
+            clap_verbosity_flag::Verbosity::default(),
+            0,
+            2.0,
+        )
     }
 
     #[test]
