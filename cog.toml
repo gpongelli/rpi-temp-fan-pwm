@@ -1,0 +1,38 @@
+from_latest_tag = true
+ignore_merge_commits = true
+ignore_fixup_commits = true
+disable_changelog = false
+disable_bump_commit = false
+generate_mono_repository_global_tag = true
+generate_mono_repository_package_tags = true
+branch_whitelist = []
+skip_ci = "[ci-skip]"
+skip_untracked = false
+tag_prefix = ""
+pre_bump_hooks = [
+    "cargo build --release",  # also done in cargo-make
+    "echo 'bump from {{latest}} to {{version}}'",
+]
+post_bump_hooks = []
+pre_package_bump_hooks = []
+post_package_bump_hooks = []
+
+[git_hooks]
+
+[commit_types]
+hotfix = { changelog_title = "Hotfixes" }
+release = { changelog_title = "Releases" }
+
+[changelog]
+path = "CHANGELOG.md"
+template = "remote"
+remote = "github.com"
+repository = "rpi-temp-fan-pwm"
+owner = "gpongelli"
+authors = [
+    { username = "gpongelli", signature = "Gabriele Pongelli" }
+]
+
+[bump_profiles]
+
+[packages]

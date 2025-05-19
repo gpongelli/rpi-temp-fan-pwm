@@ -40,6 +40,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into());
     }
 
+    debug!("debug");
+    info!("info");
+    // warn!("warn");
+    error!("error");
+
     _print_os_info();
 
     if !in_container::in_container() {
