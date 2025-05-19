@@ -1,11 +1,6 @@
-use log4rs::encode::pattern::PatternEncoder;
-
 use std::io::{self};
 
 use log::{debug, error, info, warn};
-use log4rs::append::console::ConsoleAppender;
-use log4rs::config::{Appender, Root};
-use log4rs::Config;
 
 use num_traits::cast::ToPrimitive;
 
@@ -20,36 +15,19 @@ use clap::Parser;
 mod cli_arguments;
 use crate::cli_arguments::cli_args::CliArgs;
 
+mod logger;
+use crate::logger::app_logger;
+
 const TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 
 // Gpio uses BCM pin numbering. BCM GPIO 23 is tied to physical pin 16.
 //const GPIO_LED: u8 = 23;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // -> Result<(), Box<dyn Error>>
     // parse CLI cli_args
     let cli_args = CliArgs::parse();
 
-    // https://medium.com/nerd-for-tech/logging-in-rust-e529c241f92e
-    // https://tms-dev-blog.com/log-to-a-file-in-rust-with-log4rs/
-    let stdout = ConsoleAppender::builder()
-        .encoder(Box::new(PatternEncoder::new(
-            "{h({d(%Y-%m-%d %H:%M:%S)(local)} - {l}: {m}{n})}",
-        )))
-        .build();
-    let config = Config::builder()
-        .appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .build(
-            Root::builder().appender("stdout").build(
-                cli_args
-                    .get_verbose()
-                    .log_level()
-                    .expect("Verbosity should be convertible to LevelFilter")
-                    .to_level_filter(),
-            ),
-        )
-        .unwrap();
-    let _handle = log4rs::init_config(config).unwrap();
+    let _ = app_logger::configure_logger(&cli_args);
 
     //println!("cli_args: {:#?} - {:#?}", cli_args.speed_step, cli_args.temp_step);
 
@@ -171,7 +149,7 @@ fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
         return val;
     }
 
-    let mut cfg_speed = cli_args.get_speed_step();
+    let cfg_speed = cli_args.get_speed_step();
     let cfg_temp = cli_args.get_temp_step();
 
     let mut speed: u8 = *cfg_speed.last().unwrap();
