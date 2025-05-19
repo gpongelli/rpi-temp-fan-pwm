@@ -119,7 +119,7 @@ fn _print_os_info() {
         "execution into container: {:#?}",
         in_container::in_container()
     );
-    debug!("{}", env::consts::OS); // Prints the current OS.
+    debug!("OS: {}", env::consts::OS); // Prints the current OS.
 
     let info = os_info::get();
     // Print full information:

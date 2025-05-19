@@ -37,6 +37,7 @@ pub mod cli_args {
     }
 
     impl CliArgs {
+        #[allow(dead_code)]
         pub fn new(
             bcm_pin: u8,
             temp_step: Vec<u8>,
@@ -61,6 +62,7 @@ pub mod cli_args {
             self.temp_step.len() == self.speed_step.len()
         }
 
+        #[allow(dead_code)]
         pub fn get_bcm_pin(&self) -> u8 {
             self.bcm_pin
         }
