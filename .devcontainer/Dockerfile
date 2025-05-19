@@ -40,6 +40,7 @@ RUN set -eux; \
         ca-certificates \
         gcc gnupg2 \
         libc6-dev \
+        openssh-client \
         wget curl \
         python3 pipx nano bash git libpython3-dev sudo \ 
         ; \
