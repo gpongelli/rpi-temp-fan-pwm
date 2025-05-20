@@ -1,5 +1,6 @@
 #!/bin/bash
 
+cargo clean
 cargo build --release
 
 sudo cp ./target/release/rpi-temp-fan-pwm /usr/bin/rpi-temp-fan-pwm
