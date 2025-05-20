@@ -80,7 +80,7 @@ pub mod cli_args {
         }
 
         pub fn get_verbose(&self) -> clap_verbosity_flag::Verbosity {
-            self.verbose.clone()
+            self.verbose
         }
 
         pub fn get_pwm_channel(&self) -> u8 {
@@ -99,7 +99,7 @@ pub mod cli_args {
         if PERCENTAGE.contains(&port) {
             Ok(port as u8)
         } else {
-            Err(format!("Value not in percentage range 0-100"))
+            Err("Value not in percentage range 0-100".to_string())
         }
     }
 }

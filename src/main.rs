@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // parse CLI cli_args
     let cli_args = CliArgs::parse();
 
-    let _ = app_logger::configure_logger(&cli_args);
+    app_logger::configure_logger(&cli_args);
 
     //println!("cli_args: {:#?} - {:#?}", cli_args.speed_step, cli_args.temp_step);
 
@@ -168,7 +168,7 @@ fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
         speed = cfg_speed[0];
     } else if temp > last_temp {
         debug!("max speed: {}", speed);
-        speed = speed.try_into().unwrap();
+        // max value already selected
     } else {
         for (i, &step_temp) in cfg_temp.iter().enumerate() {
             let next_step_temp = cfg_temp[i + 1];
