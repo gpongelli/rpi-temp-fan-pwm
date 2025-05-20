@@ -10,6 +10,7 @@ skip_ci = "[ci-skip]"
 skip_untracked = false
 tag_prefix = ""
 pre_bump_hooks = [
+    "cargo clippy",  # also done in cargo-make
     "cargo build --release",  # also done in cargo-make
     # "echo 'bump from {{latest}} to {{version}}'",
     "cargo bump {{version|0.0.1}}",

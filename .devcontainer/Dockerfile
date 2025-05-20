@@ -74,7 +74,7 @@ RUN set -eux; \
     # add sudo support  https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user
     echo $USER_NAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USER_NAME ; \
     chmod 0440 /etc/sudoers.d/$USER_NAME ; \
-    rustup component add rustfmt ; \
+    rustup component add rustfmt clippy ; \
     cargo install cocogitto cargo-bump ; \
     cargo install --no-default-features --force cargo-make;
     # add user to wheel group https://stackoverflow.com/questions/76248945/vs-code-devcontainer-workspace-ownership-and-permission
