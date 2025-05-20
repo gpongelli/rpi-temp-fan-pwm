@@ -2,6 +2,17 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [0.2.0](https://github.com/gpongelli/rpi-temp-fan-pwm/compare/fecbe60ec5b3f9568675cd85923253678b65c777..0.2.0) - 2025-05-20
+#### Bug Fixes
+- apllied clippy suggestions - ([e12c7ea](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/e12c7ea759c45aa14c140679582d6cae42502605)) - gpongelli
+#### Continuous Integration
+- add log - ([bf9566c](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/bf9566c03f5f3a940e8d428f7c137a04f69b171e)) - gpongelli
+#### Features
+- add clippy tool - ([d0de749](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/d0de7494cbd4ffc9a862ea69b81a9513f953110b)) - gpongelli
+- move to new style organization - ([fecbe60](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/fecbe60ec5b3f9568675cd85923253678b65c777)) - gpongelli
+
+- - -
+
 ## [0.1.0](https://github.com/gpongelli/rpi-temp-fan-pwm/compare/25cc8724171d9a904e79eae88a7a9d844cf9508d..0.1.0) - 2025-05-19
 #### Bug Fixes
 - cog bump argument - ([e343f6b](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/e343f6bf60248211106bc477b483cd755aa84c6f)) - gpongelli
