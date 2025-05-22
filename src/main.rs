@@ -40,11 +40,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into());
     }
 
-    debug!("debug");
-    info!("info");
-    // warn!("warn");
-    error!("error");
-
     _print_os_info();
 
     if !in_container::in_container() {
@@ -242,7 +237,7 @@ fn set_pwm(temp: &str, cli_args: &CliArgs) -> Result<(), Box<dyn std::error::Err
         match temp.parse::<f32>() {
             Ok(f) => {
                 // check if the value is an unsigned integer
-                if let Some(v) = f.round().to_u8() {
+                if let Some(v) = (f.round() / 1000.0).to_u8() {
                     v
                 } else {
                     error!("Temperature out of range");
