@@ -67,7 +67,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match read_file_to_string(TEMP_FILE) {
             Ok(contents) => {
                 info!("File Contents:\n{}", contents.trim());
-                let _ = set_pwm(contents.trim(), &cli_args);
+                match set_pwm(contents.trim(), &cli_args) {
+                    Ok(()) => {
+                        info!("pwm set");
+                    },
+                    Err(e) => {
+                        error!("Error setting pwm: {}", e);
+                        return Err(e.into());
+                    }
+                }
             }
             Err(e) => {
                 error!("Error reading file: {}", e);
