@@ -45,6 +45,8 @@ pub mod cli_args {
         #[command(flatten)]
         verbose: clap_verbosity_flag::Verbosity,
 
+        /// PWM channel enabled into /boot/config.txt .
+        /// Default: 0 for PWM0.
         #[arg(short = 'c', long, default_value_t = 0)]
         pwm_channel: u8,
 
