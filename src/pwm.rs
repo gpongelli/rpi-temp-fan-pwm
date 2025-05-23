@@ -9,16 +9,36 @@ pub mod pwm_manager {
     use rppal::pwm::{Channel, Polarity, Pwm};
     use std::io::{self};
 
+    pub trait PwmManagerTrait {
+        fn new(
+            pwm_channel: u8,
+            pwm_freq: f64,
+            pwm_duty: f64,
+        ) -> Result<Self, Box<dyn std::error::Error>>
+        where
+            Self: std::marker::Sized;
+
+        fn set_pwm(&self, temp: &str, cli_args: &CliArgs)
+            -> Result<(), Box<dyn std::error::Error>>;
+
+        fn set_frequency(
+            &self,
+            cli_args: &CliArgs,
+            fan_speed: f64,
+        ) -> Result<(), Box<dyn std::error::Error>>;
+    }
+
     #[derive(Debug)]
     pub struct PwmManager {
         pwm: rppal::pwm::Pwm,
     }
-    impl PwmManager {
-        pub fn new(
+    impl PwmManagerTrait for PwmManager {
+        fn new(
             pwm_channel: u8,
             pwm_freq: f64,
             pwm_duty: f64,
         ) -> Result<Self, Box<dyn std::error::Error>> {
+            // Enable PWM channel 0 (BCM GPIO 12, physical pin 32) at 2 Hz with a 25% duty cycle.
             match Pwm::with_frequency(
                 Channel::try_from(pwm_channel)?,
                 pwm_freq,
@@ -37,7 +57,17 @@ pub mod pwm_manager {
             }
         }
 
-        pub fn set_pwm(
+        fn set_frequency(
+            &self,
+            cli_args: &CliArgs,
+            fan_speed: f64,
+        ) -> Result<(), Box<dyn std::error::Error>> {
+            // Reconfigure the PWM channel with input parameters.
+            self.pwm.set_frequency(cli_args.get_pwm_freq(), fan_speed)?;
+            Ok(())
+        }
+
+        fn set_pwm(
             &self,
             temp: &str,
             cli_args: &CliArgs,
@@ -73,19 +103,20 @@ pub mod pwm_manager {
 
             let fan_speed = super::get_fan_speed_linear(temp, cli_args);
 
-            self.pwm
-                .set_frequency(cli_args.get_pwm_freq(), (fan_speed as f64) / 100.0)?;
-            // Enable PWM channel 0 (BCM GPIO 12, physical pin 32) at 2 Hz with a 25% duty cycle.
-            let _ = Pwm::with_frequency(
-                Channel::try_from(cli_args.get_pwm_channel())?,
-                cli_args.get_pwm_freq(),
-                (fan_speed as f64) / 100.0,
-                Polarity::Normal,
-                true,
-            )?;
-
-            // Reconfigure the PWM channel for an 8 Hz frequency, 50% duty cycle.
-            // pwm.set_frequency(8.0, 0.5)?;
+            match self.set_frequency(cli_args, (fan_speed as f64) / 100.0) {
+                Ok(_) => {
+                    debug!("PWM frequency set to {} Hz", cli_args.get_pwm_freq());
+                    debug!("Fan speed set to {}%", fan_speed);
+                }
+                Err(e) => {
+                    error!("Failed to set PWM frequency: {}", e);
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "Failed to set PWM frequency",
+                    )
+                    .into());
+                }
+            }
 
             Ok(())
         }

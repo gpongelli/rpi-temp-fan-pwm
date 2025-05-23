@@ -23,6 +23,7 @@ use crate::logger::app_logger;
 
 mod pwm;
 use crate::pwm::pwm_manager::PwmManager;
+use crate::pwm::pwm_manager::PwmManagerTrait;
 
 // The simple-signal crate is used to handle incoming signals.
 use simple_signal::{self, Signal};
