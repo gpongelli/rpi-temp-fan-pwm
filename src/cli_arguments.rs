@@ -10,9 +10,6 @@ pub mod cli_args {
     #[derive(Parser, Debug)]
     #[command(version, about, long_about=None)]
     pub struct CliArgs {
-        #[arg(short, long, default_value_t = 21)]
-        bcm_pin: u8,
-
         //https://stackoverflow.com/questions/73240901/how-to-get-clap-to-process-a-single-argument-with-multiple-values-without-having
         #[arg(short = 't', long, value_delimiter=',', default_value = "50,70,80", num_args = 1..)]
         temp_step: Vec<u8>,
@@ -34,37 +31,36 @@ pub mod cli_args {
         /// Default: 2.0
         #[arg(short = 'f', long, default_value_t = 2.0)]
         pwm_freq: f64,
+
+        /// Set the sleep period between pwm updates
+        #[arg(short = 'e', long, default_value_t = 0)]
+        sleep_secs: u64,
     }
 
     impl CliArgs {
         #[allow(dead_code)]
         pub fn new(
-            bcm_pin: u8,
             temp_step: Vec<u8>,
             speed_step: Vec<u8>,
             manual_speed: Option<u8>,
             verbose: clap_verbosity_flag::Verbosity,
             pwm_channel: u8,
             pwm_freq: f64,
+            sleep_secs: u64,
         ) -> Self {
             CliArgs {
-                bcm_pin,
                 temp_step,
                 speed_step,
                 manual_speed,
                 verbose,
                 pwm_channel,
                 pwm_freq,
+                sleep_secs,
             }
         }
 
         pub fn valid(&self) -> bool {
             self.temp_step.len() == self.speed_step.len()
-        }
-
-        #[allow(dead_code)]
-        pub fn get_bcm_pin(&self) -> u8 {
-            self.bcm_pin
         }
 
         pub fn get_temp_step(&self) -> Vec<u8> {
@@ -89,6 +85,10 @@ pub mod cli_args {
 
         pub fn get_pwm_freq(&self) -> f64 {
             self.pwm_freq
+        }
+
+        pub fn get_sleep_secs(&self) -> u64 {
+            self.sleep_secs
         }
     }
 

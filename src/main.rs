@@ -23,6 +23,12 @@ use crate::logger::app_logger;
 
 mod pwm;
 use crate::pwm::pwm_manager::PwmManager;
+
+// The simple-signal crate is used to handle incoming signals.
+use simple_signal::{self, Signal};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
 const TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 
 // Gpio uses BCM pin numbering. BCM GPIO 23 is tied to physical pin 16.
@@ -68,26 +74,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        // raspberry model, can continue from here
-        match read_file_to_string(TEMP_FILE) {
-            Ok(contents) => {
-                info!("File Contents:\n{}", contents.trim());
-                match set_pwm(contents.trim(), &cli_args) {
-                    Ok(()) => {
-                        info!("pwm set");
-                    },
-                    Err(e) => {
-                        error!("Error setting pwm: {}", e);
-                        return Err(e.into());
-                    }
+        let running = Arc::new(AtomicBool::new(true));
+        // When a SIGINT (Ctrl-C) or SIGTERM signal is caught, atomically set running to false.
+        simple_signal::set_handler(&[Signal::Int, Signal::Term], {
+            let running = running.clone();
+            move |_| {
+                running.store(false, Ordering::SeqCst);
+            }
+        });
+
+        // create pwm struct
+        let pwm_manager = {
+            match PwmManager::new(cli_args.get_pwm_channel(), cli_args.get_pwm_freq(), 0.5) {
+                Ok(pwm_manager) => pwm_manager,
+                Err(e) => {
+                    error!("Error creating PWM manager: {}", e);
+                    return Err(e);
                 }
             }
-            Err(e) => {
-                error!("Error reading file: {}", e);
-                return Err(e.into());
+        };
+
+        // loop until running is set to false
+        while running.load(Ordering::SeqCst) {
+            thread::sleep(Duration::from_secs(cli_args.get_sleep_secs()));
+
+            // raspberry model, can continue from here
+            match read_file_to_string(TEMP_FILE) {
+                Ok(contents) => {
+                    info!("File Contents:\n{}", contents.trim());
+                    match pwm_manager.set_pwm(contents.trim(), &cli_args) {
+                        Ok(()) => {
+                            //info!("pwm set");
+                        }
+                        Err(e) => {
+                            error!("Error setting pwm: {}", e);
+                            return Err(e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Error reading file: {}", e);
+                    return Err(e.into());
+                }
             }
         }
-
         /*if let Ok(device_info) = DeviceInfo::new() {
             debug!(
                 "Device: {} (SoC: {})",
