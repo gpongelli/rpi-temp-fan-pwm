@@ -4,6 +4,9 @@ Description=Configure PWM fan
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/rpi-temp-fan-pwm
+Restart=on-failure
+RestartSec=2
+KillSignal=SIGINT
 
 [Install]
 WantedBy=multi-user.target
