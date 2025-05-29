@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // create pwm struct
         let pwm_manager = {
-            match PwmManager::new(cli_args.get_pwm_channel(), cli_args.get_pwm_freq(), 0.5) {
+            match PwmManager::build(cli_args.get_pwm_channel(), cli_args.get_pwm_freq(), 0.5) {
                 Ok(pwm_manager) => pwm_manager,
                 Err(e) => {
                     error!("Error creating PWM manager: {}", e);

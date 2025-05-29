@@ -1,19 +1,21 @@
 use crate::cli_arguments::cli_args::CliArgsTrait;
-use log::{debug, info};
+use log::{debug, error, info};
+use num_traits::cast::ToPrimitive;
+use std::io::{self};
 
 pub mod pwm_manager {
 
     use crate::cli_arguments::cli_args::CliArgsTrait;
     use log::{debug, error, info};
-    use num_traits::cast::ToPrimitive;
     use rppal::pwm::{Channel, Polarity, Pwm};
     use std::io::{self};
 
     use mockall::predicate::*;
     use mockall::*;
 
+    #[automock]
     pub trait PwmManagerTrait {
-        fn new(
+        fn build(
             pwm_channel: u8,
             pwm_freq: f64,
             pwm_duty: f64,
@@ -39,7 +41,7 @@ pub mod pwm_manager {
         pwm: rppal::pwm::Pwm,
     }
     impl PwmManagerTrait for PwmManager {
-        fn new(
+        fn build(
             pwm_channel: u8,
             pwm_freq: f64,
             pwm_duty: f64,
@@ -79,32 +81,7 @@ pub mod pwm_manager {
             cli_args: &T,
         ) -> Result<(), Box<dyn std::error::Error>> {
             // Convert the string to a u8
-            let temp: u8 = {
-                match temp.parse::<f32>() {
-                    Ok(f) => {
-                        // check if the value is an unsigned integer
-                        // value from file is in millidegree Celsius, convert to Celsius
-                        if let Some(v) = (f.round() / 1000.0).to_u8() {
-                            v
-                        } else {
-                            error!("Temperature out of u8 range");
-                            return Err(io::Error::new(
-                                io::ErrorKind::InvalidInput,
-                                "Temperature out of u8 range",
-                            )
-                            .into());
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to parse temperature string: {}", e);
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidInput,
-                            "Failed to parse temperature string",
-                        )
-                        .into());
-                    }
-                }
-            };
+            let temp: u8 = super::parse_temp_string(temp)?;
             debug!("Temperature: {}", temp);
 
             let fan_speed = super::get_fan_speed_linear(temp, cli_args);
@@ -131,10 +108,10 @@ pub mod pwm_manager {
 
     #[cfg(test)]
     mod tests {
-        use super::*;
-        use crate::cli_arguments::cli_args::{MockCliArgsTrait};
+        //use super::*;
+        //use crate::cli_arguments::cli_args::MockCliArgsTrait;
 
-        fn cli_args(temp_step: Vec<u8>, speed_step: Vec<u8>, manual_speed: Option<u8>) -> CliArgs {
+        /*fn cli_args(temp_step: Vec<u8>, speed_step: Vec<u8>, manual_speed: Option<u8>) -> CliArgs<dyn clap_verbosity_flag::LogLevel> {
             CliArgs::new(
                 temp_step,
                 speed_step,
@@ -144,23 +121,61 @@ pub mod pwm_manager {
                 2.0,
                 60,
             )
-        }
+        }*/
 
-        fn pwm_mng(pwm_channel: u8, pwm_freq: f64, pwm_duty: f64) -> PwmManager {
-            PwmManager::new(pwm_channel, pwm_freq, pwm_duty).unwrap()
-        }
+        /*fn pwm_mng(pwm_channel: u8, pwm_freq: f64, pwm_duty: f64) -> PwmManager {
+            let mut mock = MockPwmManagerTrait::new(pwm_channel, pwm_freq, pwm_duty);
+
+
+            // PwmManager::new(pwm_channel, pwm_freq, pwm_duty).unwrap()
+        } */
 
         // --- set_pwm tests ---
 
-        #[test]
+        /*#[test]
         fn test_set_pwm_invalid_temp_string() {
-            let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-            let pwm = pwm_mng(0, 2.0, 0.5);
-            let result = pwm.set_pwm("notanumber", &args);
-            assert!(result.is_err());
-        }
+            let mut cli_mock = MockCliArgsTrait::new();
+            cli_mock.expect_get_manual_speed().returning(|| None);
+            cli_mock
+                .expect_get_speed_step()
+                .returning(|| vec![20, 50, 100]);
+            cli_mock
+                .expect_get_temp_step()
+                .returning(|| vec![50, 70, 80]);
 
-        #[test]
+            let mut pwm_ctx = MockPwmManagerTrait::build_context();
+            pwm_ctx.expect().returning(|channel, freq, duty| {
+                let mut mock = MockPwmManagerTrait::default();
+                mock.expect_set_frequency()
+                    .with(eq(&duty), eq(0.5))
+                    .returning(|_, _| Ok(()));
+                mock.expect_set_pwm()
+                    .with(eq("notanumber"), eq(&cli_mock))
+                    .returning(|_, _| {
+                        Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "Failed to parse temperature string",
+                        )
+                        .into())
+                    });
+                Ok(mock)
+            });
+
+            //.with(eq(0), eq(2.0), eq(0.5))
+            //.returning(|_, _, _| Ok(PwmManager { pwm: Pwm::new(Channel::Pwm0).unwrap() }));
+            //let mut pwm_mock = MockPwmManagerTrait::new(0, 2.0, 0.5);
+
+            /*pwm_mock
+            .expect_err(msg("Failed to create PWM"))
+            //.expect_set_frequency()
+            //.with(eq(&args), eq(0.5))
+            .returning(|_, _| Ok(()));*/
+
+            //let result = pwm_mock.expect("Pwm mock").set_pwm("notanumber", &cli_mock);
+            //assert!(result.is_err());
+        }*/
+
+        /*#[test]
         fn test_set_pwm_negative_temp_string() {
             let args = cli_args(vec![10, 20, 30], vec![10, 20, 30], None);
             let pwm = pwm_mng(0, 2.0, 0.5);
@@ -216,6 +231,34 @@ pub mod pwm_manager {
             let pwm = pwm_mng(0, 2.0, 0.5);
             let result = pwm.set_pwm("65.7", &args);
             assert!(result.is_ok() || result.is_err());
+        }*/
+    }
+}
+
+// parse temperature string from file
+fn parse_temp_string(temp: &str) -> Result<u8, Box<dyn std::error::Error>> {
+    // Convert the string to a u8
+    match temp.parse::<f32>() {
+        Ok(f) => {
+            // check if the value is an unsigned integer
+            // value from file is in millidegree Celsius, convert to Celsius
+            if let Some(v) = (f / 1000.0).round().to_u8() {
+                Ok(v)
+            } else {
+                error!("Temperature out of u8 range");
+                Err(
+                    io::Error::new(io::ErrorKind::InvalidInput, "Temperature out of u8 range")
+                        .into(),
+                )
+            }
+        }
+        Err(e) => {
+            error!("Failed to parse temperature string: {}", e);
+            Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Failed to parse temperature string",
+            )
+            .into())
         }
     }
 }
@@ -382,5 +425,43 @@ mod tests {
         assert_eq!(get_fan_speed_linear(50, &cli_mock), 0.35);
         // Between 60 and 90: 60 -> 80
         assert_eq!(get_fan_speed_linear(75, &cli_mock), 0.7);
+    }
+
+    // --- parse_temp_string tests ---
+
+    #[test]
+    fn test_parse_temp_string_valid_integer() {
+        // 42000 millidegree Celsius = 42 Celsius
+        assert_eq!(parse_temp_string("42000").unwrap(), 42);
+    }
+
+    #[test]
+    fn test_parse_temp_string_valid_float() {
+        // 42500 millidegree Celsius = 42.5 Celsius, rounds to 43
+        assert_eq!(parse_temp_string("42500").unwrap(), 43);
+    }
+
+    #[test]
+    fn test_parse_temp_string_zero() {
+        assert_eq!(parse_temp_string("0").unwrap(), 0);
+    }
+
+    #[test]
+    fn test_parse_temp_string_negative() {
+        let result = parse_temp_string("-1000");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_temp_string_non_numeric() {
+        let result = parse_temp_string("notanumber");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_temp_string_overflow() {
+        // 3000000 millidegree Celsius = 3000 Celsius, out of u8 range
+        let result = parse_temp_string("3000000");
+        assert!(result.is_err());
     }
 }
