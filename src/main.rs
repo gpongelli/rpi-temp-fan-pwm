@@ -1,5 +1,6 @@
 use std::io::{self};
 
+use cli_arguments::cli_args::CliArgsTrait;
 use log::{debug, error, info};
 
 use std::thread;
@@ -37,7 +38,7 @@ const TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // parse CLI cli_args
-    let cli_args = CliArgs::parse();
+    let cli_args: CliArgs = CliArgs::parse();
 
     app_logger::configure_logger(&cli_args);
 

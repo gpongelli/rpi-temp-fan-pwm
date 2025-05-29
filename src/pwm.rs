@@ -1,13 +1,16 @@
-use crate::cli_arguments::cli_args::CliArgs;
+use crate::cli_arguments::cli_args::CliArgsTrait;
 use log::{debug, info};
 
 pub mod pwm_manager {
 
-    use crate::cli_arguments::cli_args::CliArgs;
+    use crate::cli_arguments::cli_args::CliArgsTrait;
     use log::{debug, error, info};
     use num_traits::cast::ToPrimitive;
     use rppal::pwm::{Channel, Polarity, Pwm};
     use std::io::{self};
+
+    use mockall::predicate::*;
+    use mockall::*;
 
     pub trait PwmManagerTrait {
         fn new(
@@ -18,12 +21,15 @@ pub mod pwm_manager {
         where
             Self: std::marker::Sized;
 
-        fn set_pwm(&self, temp: &str, cli_args: &CliArgs)
-            -> Result<(), Box<dyn std::error::Error>>;
+        fn set_pwm<T: CliArgsTrait + 'static>(
+            &self,
+            temp: &str,
+            cli_args: &T,
+        ) -> Result<(), Box<dyn std::error::Error>>;
 
         fn set_frequency(
             &self,
-            cli_args: &CliArgs,
+            freq: f64,
             fan_speed: f64,
         ) -> Result<(), Box<dyn std::error::Error>>;
     }
@@ -59,18 +65,18 @@ pub mod pwm_manager {
 
         fn set_frequency(
             &self,
-            cli_args: &CliArgs,
+            freq: f64,
             fan_speed: f64,
         ) -> Result<(), Box<dyn std::error::Error>> {
             // Reconfigure the PWM channel with input parameters.
-            self.pwm.set_frequency(cli_args.get_pwm_freq(), fan_speed)?;
+            self.pwm.set_frequency(freq, fan_speed)?;
             Ok(())
         }
 
-        fn set_pwm(
+        fn set_pwm<T: CliArgsTrait + 'static>(
             &self,
             temp: &str,
-            cli_args: &CliArgs,
+            cli_args: &T,
         ) -> Result<(), Box<dyn std::error::Error>> {
             // Convert the string to a u8
             let temp: u8 = {
@@ -102,11 +108,12 @@ pub mod pwm_manager {
             debug!("Temperature: {}", temp);
 
             let fan_speed = super::get_fan_speed_linear(temp, cli_args);
+            let pwm_freq = cli_args.get_pwm_freq();
 
-            match self.set_frequency(cli_args, (fan_speed as f64) / 100.0) {
+            match self.set_frequency(pwm_freq, (fan_speed as f64) / 100.0) {
                 Ok(_) => {
-                    debug!("PWM frequency set to {} Hz", cli_args.get_pwm_freq());
-                    debug!("Fan speed set to {}%", fan_speed);
+                    debug!("PWM frequency set to {pwm_freq} Hz");
+                    debug!("Fan speed set to {fan_speed}%");
                 }
                 Err(e) => {
                     error!("Failed to set PWM frequency: {}", e);
@@ -125,6 +132,7 @@ pub mod pwm_manager {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use crate::cli_arguments::cli_args::{MockCliArgsTrait};
 
         fn cli_args(temp_step: Vec<u8>, speed_step: Vec<u8>, manual_speed: Option<u8>) -> CliArgs {
             CliArgs::new(
@@ -213,7 +221,7 @@ pub mod pwm_manager {
 }
 
 // Get speed interpolating array's values
-fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
+fn get_fan_speed_linear(temp: u8, cli_args: &impl CliArgsTrait) -> u8 {
     // manually forced value
     if cli_args.get_manual_speed().is_some() {
         let val = cli_args.get_manual_speed().unwrap();
@@ -277,65 +285,102 @@ fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn cli_args(temp_step: Vec<u8>, speed_step: Vec<u8>, manual_speed: Option<u8>) -> CliArgs {
-        CliArgs::new(
-            temp_step,
-            speed_step,
-            manual_speed,
-            clap_verbosity_flag::Verbosity::default(),
-            0,
-            2.0,
-            60,
-        )
-    }
+    use crate::cli_arguments::cli_args::MockCliArgsTrait;
 
     // --- get_fan_speed_linear tests ---
 
     #[test]
     fn test_manual_speed() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], Some(42));
-        assert_eq!(get_fan_speed_linear(60, &args), 42);
-        assert_eq!(get_fan_speed_linear(80, &args), 42);
+        let mut cli_mock = MockCliArgsTrait::new();
+        cli_mock.expect_get_manual_speed().returning(|| Some(42));
+        cli_mock
+            .expect_get_speed_step()
+            .returning(|| vec![20, 50, 100]);
+        cli_mock
+            .expect_get_temp_step()
+            .returning(|| vec![50, 70, 80]);
+
+        assert_eq!(get_fan_speed_linear(60, &cli_mock), 42);
+        assert_eq!(get_fan_speed_linear(80, &cli_mock), 42);
     }
 
     #[test]
     fn test_below_first_temp() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        assert_eq!(get_fan_speed_linear(40, &args), 20);
-        assert_eq!(get_fan_speed_linear(0, &args), 20);
+        let mut cli_mock = MockCliArgsTrait::new();
+        cli_mock.expect_get_manual_speed().returning(|| None);
+        cli_mock
+            .expect_get_speed_step()
+            .returning(|| vec![20, 50, 100]);
+        cli_mock
+            .expect_get_temp_step()
+            .returning(|| vec![50, 70, 80]);
+
+        assert_eq!(get_fan_speed_linear(40, &cli_mock), 20);
+        assert_eq!(get_fan_speed_linear(0, &cli_mock), 20);
     }
 
     #[test]
     fn test_above_last_temp() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        assert_eq!(get_fan_speed_linear(90, &args), 100);
-        assert_eq!(get_fan_speed_linear(255, &args), 100);
+        let mut cli_mock = MockCliArgsTrait::new();
+        cli_mock.expect_get_manual_speed().returning(|| None);
+        cli_mock
+            .expect_get_speed_step()
+            .returning(|| vec![20, 50, 100]);
+        cli_mock
+            .expect_get_temp_step()
+            .returning(|| vec![50, 70, 80]);
+
+        assert_eq!(get_fan_speed_linear(90, &cli_mock), 100);
+        assert_eq!(get_fan_speed_linear(255, &cli_mock), 100);
     }
 
     #[test]
     fn test_exact_temp_steps() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        assert_eq!(get_fan_speed_linear(50, &args), 20);
-        assert_eq!(get_fan_speed_linear(70, &args), 50);
-        assert_eq!(get_fan_speed_linear(80, &args), 100);
+        let mut cli_mock = MockCliArgsTrait::new();
+        cli_mock.expect_get_manual_speed().returning(|| None);
+        cli_mock
+            .expect_get_speed_step()
+            .returning(|| vec![20, 50, 100]);
+        cli_mock
+            .expect_get_temp_step()
+            .returning(|| vec![50, 70, 80]);
+
+        assert_eq!(get_fan_speed_linear(50, &cli_mock), 20);
+        assert_eq!(get_fan_speed_linear(70, &cli_mock), 50);
+        assert_eq!(get_fan_speed_linear(80, &cli_mock), 100);
     }
 
     #[test]
     fn test_linear_interpolation() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
+        let mut cli_mock = MockCliArgsTrait::new();
+        cli_mock.expect_get_manual_speed().returning(|| None);
+        cli_mock
+            .expect_get_speed_step()
+            .returning(|| vec![20, 50, 100]);
+        cli_mock
+            .expect_get_temp_step()
+            .returning(|| vec![50, 70, 80]);
+
         // Between 50 and 70: 20 -> 50
-        assert_eq!(get_fan_speed_linear(65, &args), 42);
+        assert_eq!(get_fan_speed_linear(65, &cli_mock), 42);
         // Between 70 and 80: 50 -> 100
-        assert_eq!(get_fan_speed_linear(75, &args), 75);
+        assert_eq!(get_fan_speed_linear(75, &cli_mock), 75);
     }
 
     #[test]
     fn test_non_uniform_steps() {
-        let args = cli_args(vec![40, 60, 90], vec![10, 60, 80], None);
+        let mut cli_mock = MockCliArgsTrait::new();
+        cli_mock.expect_get_manual_speed().returning(|| None);
+        cli_mock
+            .expect_get_speed_step()
+            .returning(|| vec![10, 60, 80]);
+        cli_mock
+            .expect_get_temp_step()
+            .returning(|| vec![40, 60, 90]);
+
         // Between 40 and 60: 10 -> 60
-        assert_eq!(get_fan_speed_linear(50, &args), 35);
+        assert_eq!(get_fan_speed_linear(50, &cli_mock), 35);
         // Between 60 and 90: 60 -> 80
-        assert_eq!(get_fan_speed_linear(75, &args), 70);
+        assert_eq!(get_fan_speed_linear(75, &cli_mock), 70);
     }
 }

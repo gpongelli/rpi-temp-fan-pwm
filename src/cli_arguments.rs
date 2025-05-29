@@ -2,10 +2,31 @@
 
 pub mod cli_args {
     use clap::Parser;
+    use mockall::predicate::*;
+    use mockall::*;
     use std::fmt::Debug;
     use std::ops::RangeInclusive;
 
     const PERCENTAGE: RangeInclusive<usize> = 1..=100;
+
+    #[automock]
+    pub trait CliArgsTrait {
+        //fn valid(&self) -> bool;
+
+        fn get_temp_step(&self) -> Vec<u8>;
+
+        fn get_speed_step(&self) -> Vec<u8>;
+
+        fn get_manual_speed(&self) -> Option<u8>;
+
+        fn get_verbose(&self) -> clap_verbosity_flag::Verbosity;
+
+        fn get_pwm_channel(&self) -> u8;
+
+        fn get_pwm_freq(&self) -> f64;
+
+        fn get_sleep_secs(&self) -> u64;
+    }
 
     #[derive(Parser, Debug)]
     #[command(version, about, long_about=None)]
@@ -62,32 +83,34 @@ pub mod cli_args {
         pub fn valid(&self) -> bool {
             self.temp_step.len() == self.speed_step.len()
         }
+    }
 
-        pub fn get_temp_step(&self) -> Vec<u8> {
+    impl CliArgsTrait for CliArgs {
+        fn get_temp_step(&self) -> Vec<u8> {
             self.temp_step.clone()
         }
 
-        pub fn get_speed_step(&self) -> Vec<u8> {
+        fn get_speed_step(&self) -> Vec<u8> {
             self.speed_step.clone()
         }
 
-        pub fn get_manual_speed(&self) -> Option<u8> {
+        fn get_manual_speed(&self) -> Option<u8> {
             self.manual_speed
         }
 
-        pub fn get_verbose(&self) -> clap_verbosity_flag::Verbosity {
+        fn get_verbose(&self) -> clap_verbosity_flag::Verbosity {
             self.verbose
         }
 
-        pub fn get_pwm_channel(&self) -> u8 {
+        fn get_pwm_channel(&self) -> u8 {
             self.pwm_channel
         }
 
-        pub fn get_pwm_freq(&self) -> f64 {
+        fn get_pwm_freq(&self) -> f64 {
             self.pwm_freq
         }
 
-        pub fn get_sleep_secs(&self) -> u64 {
+        fn get_sleep_secs(&self) -> u64 {
             self.sleep_secs
         }
     }
