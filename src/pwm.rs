@@ -110,7 +110,7 @@ pub mod pwm_manager {
             let fan_speed = super::get_fan_speed_linear(temp, cli_args);
             let pwm_freq = cli_args.get_pwm_freq();
 
-            match self.set_frequency(pwm_freq, (fan_speed as f64) / 100.0) {
+            match self.set_frequency(pwm_freq, fan_speed) {
                 Ok(_) => {
                     debug!("PWM frequency set to {pwm_freq} Hz");
                     debug!("Fan speed set to {fan_speed}%");
@@ -221,12 +221,12 @@ pub mod pwm_manager {
 }
 
 // Get speed interpolating array's values
-fn get_fan_speed_linear(temp: u8, cli_args: &impl CliArgsTrait) -> u8 {
+fn get_fan_speed_linear(temp: u8, cli_args: &impl CliArgsTrait) -> f64 {
     // manually forced value
     if cli_args.get_manual_speed().is_some() {
         let val = cli_args.get_manual_speed().unwrap();
         debug!("manual speed: {}", val);
-        return val;
+        return (val as f64) / 100.0;
     }
 
     let cfg_speed = cli_args.get_speed_step();
@@ -279,7 +279,7 @@ fn get_fan_speed_linear(temp: u8, cli_args: &impl CliArgsTrait) -> u8 {
 
     debug!("temp: {}", temp);
     debug!("speed: {}", speed);
-    speed
+    (speed as f64) / 100.0
 }
 
 #[cfg(test)]
@@ -300,8 +300,8 @@ mod tests {
             .expect_get_temp_step()
             .returning(|| vec![50, 70, 80]);
 
-        assert_eq!(get_fan_speed_linear(60, &cli_mock), 42);
-        assert_eq!(get_fan_speed_linear(80, &cli_mock), 42);
+        assert_eq!(get_fan_speed_linear(60, &cli_mock), 0.42);
+        assert_eq!(get_fan_speed_linear(80, &cli_mock), 0.42);
     }
 
     #[test]
@@ -315,8 +315,8 @@ mod tests {
             .expect_get_temp_step()
             .returning(|| vec![50, 70, 80]);
 
-        assert_eq!(get_fan_speed_linear(40, &cli_mock), 20);
-        assert_eq!(get_fan_speed_linear(0, &cli_mock), 20);
+        assert_eq!(get_fan_speed_linear(40, &cli_mock), 0.20);
+        assert_eq!(get_fan_speed_linear(0, &cli_mock), 0.20);
     }
 
     #[test]
@@ -330,8 +330,8 @@ mod tests {
             .expect_get_temp_step()
             .returning(|| vec![50, 70, 80]);
 
-        assert_eq!(get_fan_speed_linear(90, &cli_mock), 100);
-        assert_eq!(get_fan_speed_linear(255, &cli_mock), 100);
+        assert_eq!(get_fan_speed_linear(90, &cli_mock), 1.0);
+        assert_eq!(get_fan_speed_linear(255, &cli_mock), 1.0);
     }
 
     #[test]
@@ -345,9 +345,9 @@ mod tests {
             .expect_get_temp_step()
             .returning(|| vec![50, 70, 80]);
 
-        assert_eq!(get_fan_speed_linear(50, &cli_mock), 20);
-        assert_eq!(get_fan_speed_linear(70, &cli_mock), 50);
-        assert_eq!(get_fan_speed_linear(80, &cli_mock), 100);
+        assert_eq!(get_fan_speed_linear(50, &cli_mock), 0.2);
+        assert_eq!(get_fan_speed_linear(70, &cli_mock), 0.5);
+        assert_eq!(get_fan_speed_linear(80, &cli_mock), 1.0);
     }
 
     #[test]
@@ -362,9 +362,9 @@ mod tests {
             .returning(|| vec![50, 70, 80]);
 
         // Between 50 and 70: 20 -> 50
-        assert_eq!(get_fan_speed_linear(65, &cli_mock), 42);
+        assert_eq!(get_fan_speed_linear(65, &cli_mock), 0.42);
         // Between 70 and 80: 50 -> 100
-        assert_eq!(get_fan_speed_linear(75, &cli_mock), 75);
+        assert_eq!(get_fan_speed_linear(75, &cli_mock), 0.75);
     }
 
     #[test]
@@ -379,8 +379,8 @@ mod tests {
             .returning(|| vec![40, 60, 90]);
 
         // Between 40 and 60: 10 -> 60
-        assert_eq!(get_fan_speed_linear(50, &cli_mock), 35);
+        assert_eq!(get_fan_speed_linear(50, &cli_mock), 0.35);
         // Between 60 and 90: 60 -> 80
-        assert_eq!(get_fan_speed_linear(75, &cli_mock), 70);
+        assert_eq!(get_fan_speed_linear(75, &cli_mock), 0.7);
     }
 }
