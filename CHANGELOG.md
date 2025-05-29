@@ -2,6 +2,24 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [0.3.0](https://github.com/gpongelli/rpi-temp-fan-pwm/compare/3be32827a09763db99da9573c89ab47edf84365e..0.3.0) - 2025-05-29
+#### Bug Fixes
+- value read from file - ([af51416](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/af5141617a6f117518a59626bba84a9e6b5455c9)) - [@gpongelli](https://github.com/gpongelli)
+#### Features
+- trait for CLI arguments used by mock for tests - ([66aff92](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/66aff9207d4fc829e13cb10c15b1b4c59d4bcc92)) - gpongelli
+- use trait - ([571c41b](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/571c41b0061579673ab3197f927d5276ef408456)) - gpongelli
+- signal management, refactor on main function - ([cb7f5a0](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/cb7f5a017b66bc4a2045727b1b0e6efd6710a2ab)) - gpongelli
+- add simple-signal - ([4ea5056](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/4ea5056140d52870e848c54e24b972813d8c80ec)) - gpongelli
+- move pwm code to different module - ([04e1260](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/04e12603a8bd0a09fa8270d387c29f627bdfbc4a)) - gpongelli
+- deactivate timer, restart service, signal to kill - ([99c6426](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/99c6426d4d49220fef360cbdd7d50d140b9a4b02)) - gpongelli
+- check method return value - ([3fa82d4](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/3fa82d462a59b65d5b7f635124d5dec0597ae236)) - [@gpongelli](https://github.com/gpongelli)
+- moved and fixed install file - ([3be3282](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/3be32827a09763db99da9573c89ab47edf84365e)) - [@gpongelli](https://github.com/gpongelli)
+#### Tests
+- refact method to directly use value - ([7c0dcaf](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/7c0dcaf74847ebed9dc71c8137689483c520f6e7)) - gpongelli
+- add mockall - ([67ccd35](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/67ccd35ea83c7c7c80e2adafb9b93abda2b3d078)) - gpongelli
+
+- - -
+
 ## [0.2.0](https://github.com/gpongelli/rpi-temp-fan-pwm/compare/fecbe60ec5b3f9568675cd85923253678b65c777..0.2.0) - 2025-05-20
 #### Bug Fixes
 - apllied clippy suggestions - ([e12c7ea](https://github.com/gpongelli/rpi-temp-fan-pwm/commit/e12c7ea759c45aa14c140679582d6cae42502605)) - gpongelli
