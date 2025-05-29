@@ -2,17 +2,35 @@
 
 pub mod cli_args {
     use clap::Parser;
+    use mockall::predicate::*;
+    use mockall::*;
     use std::fmt::Debug;
     use std::ops::RangeInclusive;
 
     const PERCENTAGE: RangeInclusive<usize> = 1..=100;
 
+    #[automock]
+    pub trait CliArgsTrait {
+        //fn valid(&self) -> bool;
+
+        fn get_temp_step(&self) -> Vec<u8>;
+
+        fn get_speed_step(&self) -> Vec<u8>;
+
+        fn get_manual_speed(&self) -> Option<u8>;
+
+        fn get_verbose(&self) -> clap_verbosity_flag::Verbosity;
+
+        fn get_pwm_channel(&self) -> u8;
+
+        fn get_pwm_freq(&self) -> f64;
+
+        fn get_sleep_secs(&self) -> u64;
+    }
+
     #[derive(Parser, Debug)]
     #[command(version, about, long_about=None)]
     pub struct CliArgs {
-        #[arg(short, long, default_value_t = 21)]
-        bcm_pin: u8,
-
         //https://stackoverflow.com/questions/73240901/how-to-get-clap-to-process-a-single-argument-with-multiple-values-without-having
         #[arg(short = 't', long, value_delimiter=',', default_value = "50,70,80", num_args = 1..)]
         temp_step: Vec<u8>,
@@ -34,61 +52,66 @@ pub mod cli_args {
         /// Default: 2.0
         #[arg(short = 'f', long, default_value_t = 2.0)]
         pwm_freq: f64,
+
+        /// Set the sleep period between pwm updates
+        #[arg(short = 'e', long, default_value_t = 0)]
+        sleep_secs: u64,
     }
 
     impl CliArgs {
         #[allow(dead_code)]
         pub fn new(
-            bcm_pin: u8,
             temp_step: Vec<u8>,
             speed_step: Vec<u8>,
             manual_speed: Option<u8>,
             verbose: clap_verbosity_flag::Verbosity,
             pwm_channel: u8,
             pwm_freq: f64,
+            sleep_secs: u64,
         ) -> Self {
             CliArgs {
-                bcm_pin,
                 temp_step,
                 speed_step,
                 manual_speed,
                 verbose,
                 pwm_channel,
                 pwm_freq,
+                sleep_secs,
             }
         }
 
         pub fn valid(&self) -> bool {
             self.temp_step.len() == self.speed_step.len()
         }
+    }
 
-        #[allow(dead_code)]
-        pub fn get_bcm_pin(&self) -> u8 {
-            self.bcm_pin
-        }
-
-        pub fn get_temp_step(&self) -> Vec<u8> {
+    impl CliArgsTrait for CliArgs {
+        fn get_temp_step(&self) -> Vec<u8> {
             self.temp_step.clone()
         }
 
-        pub fn get_speed_step(&self) -> Vec<u8> {
+        fn get_speed_step(&self) -> Vec<u8> {
             self.speed_step.clone()
         }
 
-        pub fn get_manual_speed(&self) -> Option<u8> {
+        fn get_manual_speed(&self) -> Option<u8> {
             self.manual_speed
         }
 
-        pub fn get_verbose(&self) -> clap_verbosity_flag::Verbosity {
+        fn get_verbose(&self) -> clap_verbosity_flag::Verbosity {
             self.verbose
         }
 
-        pub fn get_pwm_channel(&self) -> u8 {
+        fn get_pwm_channel(&self) -> u8 {
             self.pwm_channel
         }
 
-        pub fn get_pwm_freq(&self) -> f64 {
+        fn get_pwm_freq(&self) -> f64 {
             self.pwm_freq
+        }
+
+        fn get_sleep_secs(&self) -> u64 {
+            self.sleep_secs
         }
     }
 

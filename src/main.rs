@@ -1,14 +1,18 @@
 use std::io::{self};
 
+use cli_arguments::cli_args::CliArgsTrait;
 use log::{debug, error, info};
 
-use num_traits::cast::ToPrimitive;
+use std::thread;
+use std::time::Duration;
+
+//use num_traits::cast::ToPrimitive;
 
 use rppal::system::DeviceInfo;
 use std::env;
 use std::fs;
 
-use rppal::pwm::{Channel, Polarity, Pwm};
+//use rppal::pwm::{Channel, Polarity, Pwm};
 
 use clap::Parser;
 
@@ -18,6 +22,15 @@ use crate::cli_arguments::cli_args::CliArgs;
 mod logger;
 use crate::logger::app_logger;
 
+mod pwm;
+use crate::pwm::pwm_manager::PwmManager;
+use crate::pwm::pwm_manager::PwmManagerTrait;
+
+// The simple-signal crate is used to handle incoming signals.
+use simple_signal::{self, Signal};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
 const TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 
 // Gpio uses BCM pin numbering. BCM GPIO 23 is tied to physical pin 16.
@@ -25,7 +38,7 @@ const TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // parse CLI cli_args
-    let cli_args = CliArgs::parse();
+    let cli_args: CliArgs = CliArgs::parse();
 
     app_logger::configure_logger(&cli_args);
 
@@ -63,26 +76,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        // raspberry model, can continue from here
-        match read_file_to_string(TEMP_FILE) {
-            Ok(contents) => {
-                info!("File Contents:\n{}", contents.trim());
-                match set_pwm(contents.trim(), &cli_args) {
-                    Ok(()) => {
-                        info!("pwm set");
-                    },
-                    Err(e) => {
-                        error!("Error setting pwm: {}", e);
-                        return Err(e.into());
-                    }
+        let running = Arc::new(AtomicBool::new(true));
+        // When a SIGINT (Ctrl-C) or SIGTERM signal is caught, atomically set running to false.
+        simple_signal::set_handler(&[Signal::Int, Signal::Term], {
+            let running = running.clone();
+            move |_| {
+                running.store(false, Ordering::SeqCst);
+            }
+        });
+
+        // create pwm struct
+        let pwm_manager = {
+            match PwmManager::build(cli_args.get_pwm_channel(), cli_args.get_pwm_freq(), 0.5) {
+                Ok(pwm_manager) => pwm_manager,
+                Err(e) => {
+                    error!("Error creating PWM manager: {}", e);
+                    return Err(e);
                 }
             }
-            Err(e) => {
-                error!("Error reading file: {}", e);
-                return Err(e.into());
+        };
+
+        // loop until running is set to false
+        while running.load(Ordering::SeqCst) {
+            thread::sleep(Duration::from_secs(cli_args.get_sleep_secs()));
+
+            // raspberry model, can continue from here
+            match read_file_to_string(TEMP_FILE) {
+                Ok(contents) => {
+                    info!("File Contents:\n{}", contents.trim());
+                    match pwm_manager.set_pwm(contents.trim(), &cli_args) {
+                        Ok(()) => {
+                            //info!("pwm set");
+                        }
+                        Err(e) => {
+                            error!("Error setting pwm: {}", e);
+                            return Err(e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Error reading file: {}", e);
+                    return Err(e.into());
+                }
             }
         }
-
         /*if let Ok(device_info) = DeviceInfo::new() {
             debug!(
                 "Device: {} (SoC: {})",
@@ -149,7 +186,7 @@ fn read_file_to_string(filename: &str) -> Result<String, io::Error> {
 }
 
 // Get speed interpolating array's values
-fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
+/*fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
     // manually forced value
     if cli_args.get_manual_speed().is_some() {
         let val = cli_args.get_manual_speed().unwrap();
@@ -208,7 +245,7 @@ fn get_fan_speed_linear(temp: u8, cli_args: &CliArgs) -> u8 {
     debug!("temp: {}", temp);
     debug!("speed: {}", speed);
     speed
-}
+}*/
 
 /* // Get speed from array
 fn get_fan_speed(temp: u8, cli_args: &CliArgs) -> u8 {
@@ -239,28 +276,30 @@ fn get_fan_speed(temp: u8, cli_args: &CliArgs) -> u8 {
     cli_args.speed_step[temp_idx]
 } */
 
+/*
 fn set_pwm(temp: &str, cli_args: &CliArgs) -> Result<(), Box<dyn std::error::Error>> {
     // Convert the string to a u8
     let temp: u8 = {
         match temp.parse::<f32>() {
             Ok(f) => {
                 // check if the value is an unsigned integer
+                // value from file is in millidegree Celsius, convert to Celsius
                 if let Some(v) = (f.round() / 1000.0).to_u8() {
                     v
                 } else {
-                    error!("Temperature out of range");
+                    error!("Temperature out of u8 range");
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
-                        "Temperature out of range",
+                        "Temperature out of u8 range",
                     )
                     .into());
                 }
             }
             Err(e) => {
-                error!("Failed to parse temperature: {}", e);
+                error!("Failed to parse temperature string: {}", e);
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
-                    "Failed to parse temperature",
+                    "Failed to parse temperature string",
                 )
                 .into());
             }
@@ -284,6 +323,7 @@ fn set_pwm(temp: &str, cli_args: &CliArgs) -> Result<(), Box<dyn std::error::Err
 
     Ok(())
 }
+*/
 
 // The output is wrapped in a Result to allow matching on errors.
 // Returns an Iterator to the Reader of the lines of the file.
@@ -292,129 +332,3 @@ where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }*/
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn cli_args(temp_step: Vec<u8>, speed_step: Vec<u8>, manual_speed: Option<u8>) -> CliArgs {
-        CliArgs::new(
-            21,
-            temp_step,
-            speed_step,
-            manual_speed,
-            clap_verbosity_flag::Verbosity::default(),
-            0,
-            2.0,
-        )
-    }
-
-    // --- get_fan_speed_linear tests ---
-
-    #[test]
-    fn test_manual_speed() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], Some(42));
-        assert_eq!(get_fan_speed_linear(60, &args), 42);
-        assert_eq!(get_fan_speed_linear(80, &args), 42);
-    }
-
-    #[test]
-    fn test_below_first_temp() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        assert_eq!(get_fan_speed_linear(40, &args), 20);
-        assert_eq!(get_fan_speed_linear(0, &args), 20);
-    }
-
-    #[test]
-    fn test_above_last_temp() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        assert_eq!(get_fan_speed_linear(90, &args), 100);
-        assert_eq!(get_fan_speed_linear(255, &args), 100);
-    }
-
-    #[test]
-    fn test_exact_temp_steps() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        assert_eq!(get_fan_speed_linear(50, &args), 20);
-        assert_eq!(get_fan_speed_linear(70, &args), 50);
-        assert_eq!(get_fan_speed_linear(80, &args), 100);
-    }
-
-    #[test]
-    fn test_linear_interpolation() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        // Between 50 and 70: 20 -> 50
-        assert_eq!(get_fan_speed_linear(65, &args), 42);
-        // Between 70 and 80: 50 -> 100
-        assert_eq!(get_fan_speed_linear(75, &args), 75);
-    }
-
-    #[test]
-    fn test_non_uniform_steps() {
-        let args = cli_args(vec![40, 60, 90], vec![10, 60, 80], None);
-        // Between 40 and 60: 10 -> 60
-        assert_eq!(get_fan_speed_linear(50, &args), 35);
-        // Between 60 and 90: 60 -> 80
-        assert_eq!(get_fan_speed_linear(75, &args), 70);
-    }
-
-    // --- set_pwm tests ---
-
-    #[test]
-    fn test_set_pwm_invalid_temp_string() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        let result = set_pwm("notanumber", &args);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_set_pwm_negative_temp_string() {
-        let args = cli_args(vec![10, 20, 30], vec![10, 20, 30], None);
-        let result = set_pwm("-10", &args);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_set_pwm_valid_temp() {
-        // This test may fail if run on a system without the required hardware or permissions.
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        let result = set_pwm("60", &args);
-        // Accept both Ok and Err, as hardware may not be present
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[test]
-    fn test_set_pwm_manual_speed() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], Some(77));
-        let result = set_pwm("60", &args);
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[test]
-    fn test_set_pwm_below_first_temp() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        let result = set_pwm("10", &args);
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[test]
-    fn test_set_pwm_above_last_temp() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        let result = set_pwm("200", &args);
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[test]
-    fn test_set_pwm_exact_step_temp() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        let result = set_pwm("70", &args);
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[test]
-    fn test_set_pwm_float_temp() {
-        let args = cli_args(vec![50, 70, 80], vec![20, 50, 100], None);
-        let result = set_pwm("65.7", &args);
-        assert!(result.is_ok() || result.is_err());
-    }
-}

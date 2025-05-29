@@ -1,12 +1,12 @@
 pub mod app_logger {
 
-    use crate::cli_arguments::cli_args::CliArgs;
+    use crate::cli_arguments::cli_args::CliArgsTrait;
     use log4rs::append::console::ConsoleAppender;
     use log4rs::config::{Appender, Root};
     use log4rs::encode::pattern::PatternEncoder;
     use log4rs::Config;
 
-    pub fn configure_logger(cli_args: &CliArgs) {
+    pub fn configure_logger(cli_args: &impl CliArgsTrait) {
         // https://medium.com/nerd-for-tech/logging-in-rust-e529c241f92e
         // https://tms-dev-blog.com/log-to-a-file-in-rust-with-log4rs/
         let stdout = ConsoleAppender::builder()
